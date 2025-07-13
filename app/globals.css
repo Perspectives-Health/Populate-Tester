@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 142 76% 36%;
+    --primary-foreground: 355 7% 97%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 142 76% 36%;
+    --radius: 0.5rem;
+    --chart-1: 142 76% 36%;
+    --chart-2: 346 87% 43%;
+    --chart-3: 262 83% 58%;
+    --chart-4: 195 100% 50%;
+    --chart-5: 43 96% 56%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom neon effects using standard Tailwind classes */
+.neon-border {
+  @apply border border-emerald-400;
+  box-shadow: 0 0 5px rgb(52 211 153 / 0.5);
+}
+
+.neon-glow {
+  box-shadow: 0 0 10px rgb(52 211 153 / 0.3), 0 0 20px rgb(52 211 153 / 0.2);
+}
+
+.neon-text {
+  @apply text-emerald-400;
+  text-shadow: 0 0 10px rgb(52 211 153 / 0.5);
+}
+
+.neon-accent {
+  background: linear-gradient(135deg, rgb(52 211 153 / 0.1), rgb(34 211 238 / 0.1));
+  @apply border border-emerald-400/30;
+}
+
+/* JSON syntax highlighting using standard colors */
+.json-key {
+  @apply text-cyan-400;
+}
+
+.json-string {
+  @apply text-emerald-400;
+}
+
+.json-number {
+  @apply text-purple-400;
+}
+
+.json-boolean {
+  @apply text-orange-400;
+}
+
+.json-null {
+  @apply text-red-400;
+}
