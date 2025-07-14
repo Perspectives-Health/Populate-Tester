@@ -8,7 +8,7 @@ import { PromptTesterPanel } from "@/components/prompt-tester-panel"
 import { ResultsPanel } from "@/components/results-panel"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
-import { Conversation, TestResult } from "@/lib/api"
+import { Conversation } from "@/lib/api"
 
 export function ConversationsDashboard() {
   // Single selection
@@ -28,11 +28,11 @@ export function ConversationsDashboard() {
             <h1 className="text-lg font-semibold">LLM Testing Dashboard</h1>
           </header>
           <div className="flex-1 flex overflow-hidden">
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
               {/* Pass single-select handler */}
               <ConversationsDataTable onSelect={setSelectedConversation} />
             </div>
-            <div className="w-96 border-l flex flex-col">
+            <div className="w-96 border-l flex flex-col min-h-0 flex-shrink-0">
               {/* Pass single conversation and result setter */}
               <PromptTesterPanel
                 selectedConversation={selectedConversation}

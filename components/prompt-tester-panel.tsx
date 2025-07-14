@@ -18,6 +18,41 @@ interface PromptTesterPanelProps {
   setTestScreenshot: (url: string | null) => void
 }
 
+// Helper function to check if a result is empty or meaningless
+const isEmptyResult = (result: any): boolean => {
+  if (!result) return true
+  
+  // Check if result has meaningful content
+  const json = result?.result || result?.text || result || {}
+  
+  // If it's a string, check if it's empty or just whitespace
+  if (typeof json === 'string') {
+    const cleaned = json.trim()
+    if (!cleaned || cleaned === '{}' || cleaned === '[]' || cleaned === 'null') {
+      return true
+    }
+  }
+  
+  // If it's an object, check if it's empty or has only empty values
+  if (typeof json === 'object' && json !== null) {
+    const keys = Object.keys(json)
+    if (keys.length === 0) return true
+    
+    // Check if all values are empty
+    const hasNonEmptyValue = keys.some(key => {
+      const value = json[key]
+      if (value === null || value === undefined || value === '') return false
+      if (typeof value === 'string' && value.trim() === '') return false
+      if (typeof value === 'object' && Object.keys(value).length === 0) return false
+      return true
+    })
+    
+    if (!hasNonEmptyValue) return true
+  }
+  
+  return false
+}
+
 export function PromptTesterPanel({ selectedConversation, isLoading, setTestResult, setTestScreenshot }: PromptTesterPanelProps) {
   const [defaultPrompt, setDefaultPrompt] = useState("")
   const [data, setData] = useState("")
@@ -28,6 +63,7 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
   const [jobId, setJobId] = useState<string | null>(null)
   const [jobStatus, setJobStatus] = useState<'idle' | 'pending' | 'done' | 'error'>('idle')
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
+  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Load custom prompt from localStorage on mount
   useEffect(() => {
@@ -69,12 +105,19 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
     }
   }, [customPrompt])
 
-  // Clean up polling on unmount
+  // Clean up polling on unmount or conversation change
   useEffect(() => {
     return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current)
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+      if (pollingTimeoutRef.current) {
+        clearTimeout(pollingTimeoutRef.current)
+        pollingTimeoutRef.current = null
+      }
     }
-  }, [])
+  }, [selectedConversation])
 
   const handleSavePrompt = () => {
     localStorage.setItem("customPrompt", promptInput)
@@ -98,34 +141,94 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
     setTestResult(null)
     setJobStatus('pending')
     setJobId(null)
+    
+    // Clear any existing polling
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current)
+      pollingRef.current = null
+    }
+    if (pollingTimeoutRef.current) {
+      clearTimeout(pollingTimeoutRef.current)
+      pollingTimeoutRef.current = null
+    }
+    
     // Start the job
     try {
       const req = {
-        conversation_id: selectedConversation.id, // snake_case
-        workflow_id: selectedConversation.workflow_id, // snake_case
+        conversation_id: selectedConversation.id,
+        workflow_id: selectedConversation.workflow_id,
         prompt: promptInput,
-        screenshot_s3_link: selectedConversation.mapping_screenshot_s3_link,
+        screenshot_s3_link: selectedConversation.mapping_screenshot_s3_link || undefined,
       }
+      console.log('Sending test prompt request:', req)
       const { job_id } = await startTestPromptJob(req)
       setJobId(job_id)
-      // Start polling every 5 seconds
-      pollingRef.current = setInterval(async () => {
-        const res = await getTestPromptResult(job_id)
-        if (res.status === 'done') {
-          setTestResult(res.result)
-          setTestScreenshot(res.screenshot_url || null)
-          setJobStatus('done')
-          setTestLoading(false)
-          if (pollingRef.current) clearInterval(pollingRef.current)
-        } else if (res.status === 'error') {
-          setTestResult({ error: res.error })
-          setTestScreenshot(null)
-          setJobStatus('error')
-          setTestLoading(false)
-          if (pollingRef.current) clearInterval(pollingRef.current)
-        }
-      }, 5000)
+      
+      // Start polling every 5 seconds with initial delay
+      pollingTimeoutRef.current = setTimeout(() => {
+        console.log('Starting polling for job:', job_id)
+        let pollCount = 0;
+        const maxPolls = 60; // 5 minutes max (60 * 5 seconds)
+        
+        pollingRef.current = setInterval(async () => {
+          pollCount++;
+          console.log(`Poll attempt ${pollCount}/${maxPolls}`)
+          
+          if (pollCount > maxPolls) {
+            console.log('Max polls reached, stopping')
+            setTestResult({ error: 'Job timed out after 5 minutes' })
+            setTestScreenshot(null)
+            setJobStatus('error')
+            setTestLoading(false)
+            if (pollingRef.current) {
+              clearInterval(pollingRef.current)
+              pollingRef.current = null
+            }
+            return;
+          }
+          
+          try {
+            const res = await getTestPromptResult(job_id)
+            console.log('Polling result:', res)
+            
+            if (res.status === 'done') {
+              console.log('Job completed, setting result:', res)
+              // Only add non-empty results
+              if (!isEmptyResult(res)) {
+                setTestResult(res)
+              } else {
+                console.log('Skipping empty result:', res)
+              }
+              setTestScreenshot(res.screenshot_url || null)
+              setJobStatus('done')
+              setTestLoading(false)
+              if (pollingRef.current) {
+                clearInterval(pollingRef.current)
+                pollingRef.current = null
+              }
+            } else if (res.status === 'error') {
+              console.log('Job failed:', res.error)
+              setTestResult({ error: res.error })
+              setTestScreenshot(null)
+              setJobStatus('error')
+              setTestLoading(false)
+              if (pollingRef.current) {
+                clearInterval(pollingRef.current)
+                pollingRef.current = null
+              }
+            } else if (res.status === 'pending') {
+              console.log('Job still pending...')
+            }
+            // If status is 'pending', continue polling
+          } catch (error) {
+            console.error('Polling error:', error)
+            // Don't immediately fail on polling errors, just log them
+            // Only fail if we get multiple consecutive errors
+          }
+        }, 5000)
+      }, 2000) // Initial delay to let the job start
     } catch (err) {
+      console.error('Test prompt error:', err)
       setTestResult({ error: err instanceof Error ? err.message : String(err) })
       setTestScreenshot(null)
       setJobStatus('error')
@@ -166,7 +269,7 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
             placeholder={loadingPrompt ? "Loading prompt..." : "Select a conversation to see the prompt"}
             value={promptInput}
             onChange={handlePromptChange}
-            className="flex-1 min-h-0 resize-none neon-border bg-slate-900/50 text-base mb-4"
+            className="flex-1 min-h-0 resize-none rounded-lg border border-slate-700 bg-slate-900/50 text-base mb-4 custom-scrollbar"
             style={{ height: "100%" }}
           />
         </div>
@@ -176,7 +279,7 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
             placeholder={loadingPrompt ? "Loading data..." : "Select a conversation to see the data"}
             value={data}
             readOnly
-            className="flex-1 min-h-0 resize-none neon-border bg-slate-900/50 text-base"
+            className="flex-1 min-h-0 resize-none rounded-lg border border-slate-700 bg-slate-900/50 text-base custom-scrollbar"
             style={{ height: "100%" }}
           />
         </div>
@@ -200,11 +303,13 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
             </>
           )}
         </Button>
-        {jobStatus === 'pending' && <p className="text-sm text-slate-400 text-center mt-2">Running...</p>}
-        {jobStatus === 'error' && <p className="text-sm text-red-400 text-center mt-2">Error running prompt. See result panel for details.</p>}
+        {jobStatus === 'pending' && <p className="text-sm text-slate-400 text-center mt-2">Running... (Status: {jobStatus})</p>}
+        {jobStatus === 'done' && <p className="text-sm text-green-400 text-center mt-2">Completed! (Status: {jobStatus})</p>}
+        {jobStatus === 'error' && <p className="text-sm text-red-400 text-center mt-2">Error running prompt. See result panel for details. (Status: {jobStatus})</p>}
         {!selectedConversation && (
           <p className="text-sm text-slate-400 text-center mt-2">Select a conversation to enable testing</p>
         )}
+        <p className="text-xs text-slate-500 text-center mt-1">Debug: jobStatus={jobStatus}, testLoading={testLoading.toString()}</p>
       </div>
     </div>
   )

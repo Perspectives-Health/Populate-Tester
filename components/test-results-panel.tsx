@@ -11,9 +11,44 @@ interface TestResultsPanelProps {
   selectedConversation: any | null // Changed from Conversation | null
 }
 
+// Helper function to check if a result is empty or meaningless
+const isEmptyResult = (result: any): boolean => {
+  if (!result) return true
+  
+  // Check if result has meaningful content
+  const json = result?.result || result?.text || result || {}
+  
+  // If it's a string, check if it's empty or just whitespace
+  if (typeof json === 'string') {
+    const cleaned = json.trim()
+    if (!cleaned || cleaned === '{}' || cleaned === '[]' || cleaned === 'null') {
+      return true
+    }
+  }
+  
+  // If it's an object, check if it's empty or has only empty values
+  if (typeof json === 'object' && json !== null) {
+    const keys = Object.keys(json)
+    if (keys.length === 0) return true
+    
+    // Check if all values are empty
+    const hasNonEmptyValue = keys.some(key => {
+      const value = json[key]
+      if (value === null || value === undefined || value === '') return false
+      if (typeof value === 'string' && value.trim() === '') return false
+      if (typeof value === 'object' && Object.keys(value).length === 0) return false
+      return true
+    })
+    
+    if (!hasNonEmptyValue) return true
+  }
+  
+  return false
+}
+
 export function TestResultsPanel({ results, selectedConversation }: TestResultsPanelProps) {
   const filteredResults = selectedConversation
-    ? results.filter((r) => r.conversationId === selectedConversation.id)
+    ? results.filter((r) => r.conversationId === selectedConversation.id && !isEmptyResult(r))
     : []
 
   const formatTimestamp = (timestamp: string) => {
@@ -114,11 +149,15 @@ export function TestResultsPanel({ results, selectedConversation }: TestResultsP
                         <div className="grid grid-cols-1 gap-2 text-xs">
                           <div>
                             <span className="text-muted-foreground">Original:</span>
-                            <p className="bg-muted p-2 rounded mt-1">{comp.original}</p>
+                            <div className="bg-slate-800 p-2 rounded-lg border border-slate-700 mt-1 overflow-x-auto custom-scrollbar">
+                              <p className="whitespace-pre-wrap break-words">{comp.original}</p>
+                            </div>
                           </div>
                           <div>
                             <span className="text-muted-foreground">Generated:</span>
-                            <p className="bg-blue-50 p-2 rounded mt-1">{comp.generated}</p>
+                            <div className="bg-slate-800 p-2 rounded-lg border border-slate-700 mt-1 overflow-x-auto custom-scrollbar">
+                              <p className="whitespace-pre-wrap break-words">{comp.generated}</p>
+                            </div>
                           </div>
                         </div>
                       </div>

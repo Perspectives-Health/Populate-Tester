@@ -24,7 +24,7 @@ export const ScreenshotPanel: React.FC<ScreenshotPanelProps> = ({ screenshotUrl 
           <span className="font-semibold neon-text">Screenshot</span>
         </div>
       </div>
-      <div className="flex-1 bg-slate-900 rounded-b-lg border border-slate-700 border-t-0 overflow-auto flex flex-col">
+              <div className="flex-1 bg-slate-900 rounded-b-lg border border-slate-700 border-t-0 overflow-auto custom-scrollbar flex flex-col">
         <TransformWrapper
           wheel={{ step: 3 }}
           minScale={MIN_SCALE}

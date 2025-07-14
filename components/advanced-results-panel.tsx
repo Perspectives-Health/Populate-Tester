@@ -15,6 +15,41 @@ interface AdvancedResultsPanelProps {
   isPending: boolean
 }
 
+// Helper function to check if a result is empty or meaningless
+const isEmptyResult = (result: any): boolean => {
+  if (!result) return true
+  
+  // Check if result has meaningful content
+  const json = result?.result || result?.text || result || {}
+  
+  // If it's a string, check if it's empty or just whitespace
+  if (typeof json === 'string') {
+    const cleaned = json.trim()
+    if (!cleaned || cleaned === '{}' || cleaned === '[]' || cleaned === 'null') {
+      return true
+    }
+  }
+  
+  // If it's an object, check if it's empty or has only empty values
+  if (typeof json === 'object' && json !== null) {
+    const keys = Object.keys(json)
+    if (keys.length === 0) return true
+    
+    // Check if all values are empty
+    const hasNonEmptyValue = keys.some(key => {
+      const value = json[key]
+      if (value === null || value === undefined || value === '') return false
+      if (typeof value === 'string' && value.trim() === '') return false
+      if (typeof value === 'object' && Object.keys(value).length === 0) return false
+      return true
+    })
+    
+    if (!hasNonEmptyValue) return true
+  }
+  
+  return false
+}
+
 export function AdvancedResultsPanel({ results, selectedConversation, onClear, isPending }: AdvancedResultsPanelProps) {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
@@ -28,6 +63,9 @@ export function AdvancedResultsPanel({ results, selectedConversation, onClear, i
     }
   }
 
+  // Filter out empty results
+  const filteredResults = results.filter(result => !isEmptyResult(result))
+
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 border-b border-slate-800 neon-accent">
@@ -38,15 +76,15 @@ export function AdvancedResultsPanel({ results, selectedConversation, onClear, i
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="neon-border">
-              {results.length}
+              {filteredResults.length}
             </Badge>
             <Button size="sm" variant="outline" onClick={onClear}>Clear</Button>
             {isPending && <span className="ml-2 text-yellow-400">Running...</span>}
           </div>
         </div>
       </div>
-      <ScrollArea className="flex-1">
-        {results.length === 0 ? (
+      <div className="h-full overflow-auto custom-scrollbar">
+        {filteredResults.length === 0 ? (
           <div className="flex items-center justify-center h-full text-slate-400 p-6">
             <div className="text-center">
               <Clock className="h-8 w-8 mx-auto mb-3 opacity-50" />
@@ -55,8 +93,8 @@ export function AdvancedResultsPanel({ results, selectedConversation, onClear, i
             </div>
           </div>
         ) : (
-          <div className="p-4 space-y-4">
-            {results.map((result, index) => {
+          <div className="p-4 space-y-4 max-w-2xl mx-auto">
+            {filteredResults.map((result, index) => {
               // Defensive: allow for new result shape and nulls
               let key = "result-" + index;
               if (result && (result.timestamp || result.time || result.created_at)) {
@@ -85,13 +123,13 @@ export function AdvancedResultsPanel({ results, selectedConversation, onClear, i
                 }
               }
               return (
-                <Card key={key} className="neon-accent border-l-4 border-l-emerald-400">
+                <Card key={key} className="neon-accent border-l-4 border-l-emerald-400 h-fit w-full">
                   <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between min-w-0">
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
                           <Badge variant="outline" className="text-xs neon-border">
-                            Test #{results.length - index}
+                            Test #{filteredResults.length - index}
                           </Badge>
                         </div>
                         <p className="text-xs text-slate-400">
@@ -108,30 +146,29 @@ export function AdvancedResultsPanel({ results, selectedConversation, onClear, i
                       </Button>
                     </div>
                   </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="flex gap-4">
-                      <div className="bg-slate-900 rounded-lg border border-slate-700 p-4" style={{ boxSizing: 'border-box' }}>
-                        <SyntaxHighlighter
-                          language="json"
-                          style={vscDarkPlus}
-                          customStyle={{ background: 'transparent', fontSize: 13, margin: 0, padding: 0, boxSizing: 'border-box', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
-                        >
-                          {typeof prettyJson === 'string' ? prettyJson : JSON.stringify(prettyJson, null, 2)}
-                        </SyntaxHighlighter>
-                      </div>
-                      {screenshot && (
-                        <div className="flex-1 flex flex-col items-center justify-center min-w-0">
-                          <div className="mb-2 flex items-center gap-1 text-xs text-slate-400"><ImageIcon className="h-4 w-4" /> Screenshot</div>
-                          <div className="border border-slate-700 rounded-lg overflow-hidden bg-black">
-                            <img
-                              src={screenshot}
-                              alt="Test Screenshot"
-                              className="max-h-60 max-w-full object-contain"
-                              style={{ background: "#000" }}
-                            />
-                          </div>
+                  <CardContent className="pt-0 min-w-0">
+                    <div className="flex flex-wrap gap-4 min-w-0">
+                      <div className="flex-1 w-full min-w-0">
+                        <div className="bg-slate-900 rounded-lg border border-slate-700 p-4 overflow-x-auto w-full custom-scrollbar" style={{ boxSizing: 'border-box' }}>
+                          <SyntaxHighlighter
+                            language="json"
+                            style={vscDarkPlus}
+                            customStyle={{ 
+                              background: 'transparent', 
+                              fontSize: 13, 
+                              margin: 0, 
+                              padding: 0, 
+                              boxSizing: 'border-box', 
+                              whiteSpace: 'pre', // no wrapping, allow scroll
+                              wordBreak: 'normal',
+                              minWidth: 0,
+                              maxWidth: '100%'
+                            }}
+                          >
+                            {typeof prettyJson === 'string' ? prettyJson : JSON.stringify(prettyJson, null, 2)}
+                          </SyntaxHighlighter>
                         </div>
-                      )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -139,7 +176,7 @@ export function AdvancedResultsPanel({ results, selectedConversation, onClear, i
             })}
           </div>
         )}
-      </ScrollArea>
+      </div>
       {/* Add global style to fix syntax highlighter padding */}
       <style jsx global>{`
         /* Fix react-syntax-highlighter padding issue */

@@ -6,7 +6,7 @@ import { PromptTesterPanel } from "@/components/prompt-tester-panel"
 import { AdvancedResultsPanel } from "@/components/advanced-results-panel"
 import type { Conversation } from "@/lib/api"
 import { ScreenshotPanel } from "@/components/ScreenshotPanel";
-import { startTestPromptJob, getTestPromptResult, clearTestPromptResults } from "@/lib/api"
+import { clearTestPromptResults } from "@/lib/api"
 
 export function ResizableDashboard() {
   // Single-select logic
@@ -23,20 +23,10 @@ export function ResizableDashboard() {
   const [rightPanel2Width, setRightPanel2Width] = useState(22.5)
   const [isDragging, setIsDragging] = useState<"left" | "right" | "right2" | null>(null)
 
-  // Handle async test prompt job
-  const handlePromptTest = async (payload: any) => {
-    setIsPending(true)
-    // Start the job
-    const { job_id } = await startTestPromptJob(payload)
-    // Poll for result
-    pollingRef.current = setInterval(async () => {
-      const res = await getTestPromptResult(job_id)
-      if (res.status === 'done' || res.status === 'error') {
-        setTestResults((prev) => [res, ...prev])
-        setIsPending(false)
-        if (pollingRef.current) clearInterval(pollingRef.current)
-      }
-    }, 5000)
+  // Handle test result from PromptTesterPanel
+  const handleTestResult = (result: any) => {
+    setTestResults((prev) => [result, ...prev])
+    setIsPending(false)
   }
 
   const handleClearResults = async () => {
@@ -119,7 +109,7 @@ export function ResizableDashboard() {
         onMouseLeave={handleMouseUp}
       >
         {/* Left Panel - Conversations Data Table */}
-        <div className="overflow-hidden" style={{ width: `${leftPanelWidth}%` }}>
+        <div className="overflow-hidden flex-shrink-0" style={{ width: `${leftPanelWidth}%` }}>
           <ConversationsDataTable
             onSelect={setSelectedConversation}
           />
@@ -134,17 +124,17 @@ export function ResizableDashboard() {
           <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-emerald-400/20" />
         </div>
         {/* Middle Panel - Prompt Tester */}
-        <div className="overflow-hidden" style={{ width: `${middlePanelWidth}%` }}>
+        <div className="overflow-hidden flex-shrink-0" style={{ width: `${middlePanelWidth}%` }}>
           <PromptTesterPanel
             selectedConversation={selectedConversation}
             isLoading={isLoading}
-            setTestResult={handlePromptTest}
+            setTestResult={handleTestResult}
             setTestScreenshot={() => {}}
           />
         </div>
         {/* Right Divider */}
         <div
-          className={`w-1 bg-slate-800 hover:bg-emerald-400/50 cursor-col-resize transition-colors relative group ${
+          className={`w-1 bg-slate-800 hover:bg-emerald-400/50 cursor-col-resize transition-colors relative group flex-shrink-0 ${
             isDragging === "right" ? "bg-emerald-400" : ""
           }`}
           onMouseDown={() => handleMouseDown("right")}
@@ -152,7 +142,7 @@ export function ResizableDashboard() {
           <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-emerald-400/20" />
         </div>
         {/* Right Panel - Advanced Results */}
-        <div className="overflow-hidden" style={{ width: `${rightPanelWidth}%` }}>
+        <div className="overflow-hidden flex-shrink-0" style={{ width: `${rightPanelWidth}%` }}>
           <AdvancedResultsPanel
             results={testResults}
             selectedConversation={selectedConversation}
@@ -162,7 +152,7 @@ export function ResizableDashboard() {
         </div>
         {/* Right2 Divider */}
         <div
-          className={`w-1 bg-slate-800 hover:bg-emerald-400/50 cursor-col-resize transition-colors relative group ${
+          className={`w-1 bg-slate-800 hover:bg-emerald-400/50 cursor-col-resize transition-colors relative group flex-shrink-0 ${
             isDragging === "right2" ? "bg-emerald-400" : ""
           }`}
           onMouseDown={() => handleMouseDown("right2")}
@@ -170,7 +160,7 @@ export function ResizableDashboard() {
           <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-emerald-400/20" />
         </div>
         {/* New Fourth Panel - Screenshot */}
-        <div className="overflow-hidden" style={{ width: `${rightPanel2Width}%`, height: '100%' }}>
+        <div className="overflow-hidden flex-shrink-0" style={{ width: `${rightPanel2Width}%`, height: '100%' }}>
           <ScreenshotPanel screenshotUrl={selectedConversation?.mapping_screenshot_s3_link} />
         </div>
       </div>

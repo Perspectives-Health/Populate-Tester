@@ -2,15 +2,17 @@ import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
   try {
-    const { conversationId, prompt } = await request.json()
+    const { conversation_id, workflow_id, prompt, screenshot_s3_link } = await request.json()
 
     // Call the actual LLM service instead of returning mock data
     const llmResponse = await fetch("/api/llm/test-prompt", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        conversationId,
+        conversation_id,
+        workflow_id,
         prompt,
+        screenshot_s3_link,
       }),
     })
 
