@@ -5,11 +5,10 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { CheckCircle, XCircle, Clock, Copy } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { TestResult, Conversation } from "./simple-dashboard"
 
 interface TestResultsPanelProps {
-  results: TestResult[]
-  selectedConversation: Conversation | null
+  results: any[] // Changed from TestResult[]
+  selectedConversation: any | null // Changed from Conversation | null
 }
 
 export function TestResultsPanel({ results, selectedConversation }: TestResultsPanelProps) {

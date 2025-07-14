@@ -1,113 +1,93 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Search, Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { Conversation } from "./simple-dashboard"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ArrowUpDown, Search, Filter, X } from "lucide-react"
+import { conversationsApi, type Conversation, ApiError } from "@/lib/api"
 
 interface ConversationsPanelProps {
-  onConversationSelect: (conversation: Conversation) => void
-  selectedConversation: Conversation | null
+  onSelectionChange: (conversations: Conversation[]) => void
+  selectedConversations: Conversation[]
 }
 
-// Mock data
-const mockConversations: Conversation[] = [
-  {
-    id: "conv_001",
-    timestamp: "2024-01-15T10:30:00Z",
-    audioUrl: "/audio/recording_001.mp3",
-    originalAnswers: {
-      name: "John Doe",
-      email: "john@example.com",
-      phone: "+1234567890",
-      message: "I'm interested in your services",
-    },
-    formFields: [
-      { name: "name", type: "text", label: "Full Name", required: true },
-      { name: "email", type: "email", label: "Email Address", required: true },
-      { name: "phone", type: "tel", label: "Phone Number", required: false },
-      { name: "message", type: "textarea", label: "Message", required: true },
-    ],
-    metadata: { duration: 45, fileSize: 2.1, quality: "high" },
-  },
-  {
-    id: "conv_002",
-    timestamp: "2024-01-15T14:22:00Z",
-    audioUrl: "/audio/recording_002.mp3",
-    originalAnswers: {
-      firstName: "Jane",
-      lastName: "Smith",
-      company: "Tech Corp",
-      budget: "$10,000-$50,000",
-    },
-    formFields: [
-      { name: "firstName", type: "text", label: "First Name", required: true },
-      { name: "lastName", type: "text", label: "Last Name", required: true },
-      { name: "company", type: "text", label: "Company", required: false },
-      { name: "budget", type: "select", label: "Budget Range", required: true },
-    ],
-    metadata: { duration: 67, fileSize: 3.2, quality: "medium" },
-  },
-  {
-    id: "conv_003",
-    timestamp: "2024-01-16T09:15:00Z",
-    audioUrl: "/audio/recording_003.mp3",
-    originalAnswers: {
-      customerName: "Alice Johnson",
-      issueType: "Technical Support",
-      priority: "High",
-      description: "Unable to access dashboard after recent update",
-    },
-    formFields: [
-      { name: "customerName", type: "text", label: "Customer Name", required: true },
-      { name: "issueType", type: "select", label: "Issue Type", required: true },
-      { name: "priority", type: "select", label: "Priority", required: true },
-      { name: "description", type: "textarea", label: "Description", required: true },
-    ],
-    metadata: { duration: 89, fileSize: 4.1, quality: "high" },
-  },
-  {
-    id: "conv_004",
-    timestamp: "2024-01-16T15:45:00Z",
-    audioUrl: "/audio/recording_004.mp3",
-    originalAnswers: {
-      name: "Bob Wilson",
-      email: "bob@company.com",
-      subject: "Partnership Inquiry",
-      message: "Looking to discuss potential collaboration opportunities",
-    },
-    formFields: [
-      { name: "name", type: "text", label: "Full Name", required: true },
-      { name: "email", type: "email", label: "Email", required: true },
-      { name: "subject", type: "text", label: "Subject", required: true },
-      { name: "message", type: "textarea", label: "Message", required: true },
-    ],
-    metadata: { duration: 123, fileSize: 5.8, quality: "high" },
-  },
-]
-
-export function ConversationsPanel({ onConversationSelect, selectedConversation }: ConversationsPanelProps) {
+export function ConversationsPanel({ onSelectionChange, selectedConversations }: ConversationsPanelProps) {
   const [conversations, setConversations] = useState<Conversation[]>([])
-  const [searchTerm, setSearchTerm] = useState("")
   const [filteredConversations, setFilteredConversations] = useState<Conversation[]>([])
+  const [searchTerm, setSearchTerm] = useState("")
+  const [workflowFilter, setWorkflowFilter] = useState<string>("all")
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
+  // Fetch conversations from API
   useEffect(() => {
-    setConversations(mockConversations)
-    setFilteredConversations(mockConversations)
+    const fetchConversations = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+        const data = await conversationsApi.getAll()
+        setConversations(data)
+        setFilteredConversations(data)
+      } catch (err) {
+        const errorMessage = err instanceof ApiError 
+          ? `API Error (${err.status}): ${err.message}`
+          : err instanceof Error 
+            ? err.message 
+            : "Failed to fetch conversations"
+        setError(errorMessage)
+        console.error("Error fetching conversations:", err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchConversations()
   }, [])
 
+  // Filter conversations based on search and workflow
   useEffect(() => {
-    const filtered = conversations.filter(
-      (conv) =>
-        conv.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        JSON.stringify(conv.originalAnswers).toLowerCase().includes(searchTerm.toLowerCase()),
-    )
+    const filtered = conversations.filter((conv) => {
+      const matchesSearch =
+        conv.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        conv.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        conv.workflow.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        conv.id.toLowerCase().includes(searchTerm.toLowerCase())
+
+      const matchesWorkflow = workflowFilter === "all" || conv.workflow === workflowFilter
+
+      return matchesSearch && matchesWorkflow
+    })
+
     setFilteredConversations(filtered)
-  }, [searchTerm, conversations])
+  }, [conversations, searchTerm, workflowFilter])
+
+  const workflows = [...new Set(conversations.map((c) => c.workflow))]
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      onSelectionChange(filteredConversations)
+    } else {
+      onSelectionChange([])
+    }
+  }
+
+  const handleSelectConversation = (conversation: Conversation, checked: boolean) => {
+    if (checked) {
+      onSelectionChange([...selectedConversations, conversation])
+    } else {
+      onSelectionChange(selectedConversations.filter((c) => c.id !== conversation.id))
+    }
+  }
+
+  const clearFilters = () => {
+    setSearchTerm("")
+    setWorkflowFilter("all")
+  }
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -116,7 +96,35 @@ export function ConversationsPanel({ onConversationSelect, selectedConversation 
   }
 
   const formatDate = (timestamp: string) => {
-    return new Date(timestamp).toLocaleDateString()
+    return new Date(timestamp).toLocaleString()
+  }
+
+  const isSelected = (conversation: Conversation) => {
+    return selectedConversations.some((c) => c.id === conversation.id)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400 mx-auto mb-4"></div>
+          <p className="text-slate-400">Loading conversations...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-400 mb-4">Error: {error}</p>
+          <Button onClick={() => window.location.reload()} variant="outline">
+            Retry
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -140,24 +148,18 @@ export function ConversationsPanel({ onConversationSelect, selectedConversation 
             <Card
               key={conversation.id}
               className={`cursor-pointer transition-colors hover:bg-muted/50 ${
-                selectedConversation?.id === conversation.id ? "bg-muted border-primary" : ""
+                isSelected(conversation) ? "bg-muted border-primary" : ""
               }`}
-              onClick={() => onConversationSelect(conversation)}
+              onClick={() => handleSelectConversation(conversation, !isSelected(conversation))}
             >
               <CardContent className="p-3">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-sm">{conversation.id}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        // Play audio functionality
-                      }}
-                    >
-                      <Play className="h-3 w-3" />
-                    </Button>
+                    <Checkbox
+                      checked={isSelected(conversation)}
+                      onCheckedChange={(checked) => handleSelectConversation(conversation, checked)}
+                    />
                   </div>
 
                   <div className="text-xs text-muted-foreground">{formatDate(conversation.timestamp)}</div>

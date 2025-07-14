@@ -1,14 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Play, Pause, Volume2, FileText, User, Mail, Calendar, Clock } from "lucide-react"
-import type { Conversation } from "./resizable-dashboard"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { FileText, User, Mail, Calendar, Clock, Play, Pause, Volume2 } from "lucide-react"
+import { conversationsApi, type Conversation, type ConversationDetails, ApiError } from "@/lib/api"
 
 interface ConversationDetailsModalProps {
   conversation: Conversation | null
@@ -16,40 +16,38 @@ interface ConversationDetailsModalProps {
   onClose: () => void
 }
 
-// Mock transcript data
-const mockTranscript = `[00:00] Speaker 1: Hi, thank you for calling Tech Solutions. My name is Sarah, how can I help you today?
-
-[00:03] Speaker 2: Hi Sarah, my name is John Doe. I'm calling because I'm interested in learning more about your enterprise solutions and pricing tiers.
-
-[00:12] Speaker 1: That's great John! I'd be happy to help you with that. Can I get your email address so I can send you some information?
-
-[00:18] Speaker 2: Sure, it's john@example.com. That's J-O-H-N at example dot com.
-
-[00:25] Speaker 1: Perfect, I've got that down. And what's the best phone number to reach you at?
-
-[00:30] Speaker 2: You can reach me at 1-234-567-8900. That's my direct line.
-
-[00:36] Speaker 1: Excellent. Now, can you tell me a bit about your company and what specific solutions you're looking for?
-
-[00:42] Speaker 2: We're Tech Solutions Inc, and we're looking for a comprehensive platform that can handle our customer management and analytics needs. We're particularly interested in the enterprise tier because we have about 500 employees.
-
-[00:55] Speaker 1: That sounds like a perfect fit for our Enterprise package. I'll make sure to include detailed information about our enterprise features in the materials I send you. Is there anything specific you'd like me to focus on?
-
-[01:05] Speaker 2: Yes, I'm particularly interested in the pricing structure and implementation timeline. We're looking to make a decision by Q2 2024.
-
-[01:13] Speaker 1: Absolutely, I'll include our enterprise pricing guide and typical implementation schedules. You should receive everything within the next hour. Is there anything else I can help you with today?
-
-[01:22] Speaker 2: No, that covers everything. Thank you so much for your help, Sarah.
-
-[01:25] Speaker 1: You're very welcome, John! Have a great day and don't hesitate to reach out if you have any questions.
-
-[01:30] Speaker 2: Thank you, you too. Goodbye!
-
-[01:32] Speaker 1: Goodbye!`
-
 export function ConversationDetailsModal({ conversation, isOpen, onClose }: ConversationDetailsModalProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
+  const [conversationDetails, setConversationDetails] = useState<ConversationDetails | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch conversation details when modal opens
+  useEffect(() => {
+    if (isOpen && conversation) {
+      const fetchConversationDetails = async () => {
+        try {
+          setIsLoading(true)
+          setError(null)
+          const data = await conversationsApi.getById(conversation.id)
+          setConversationDetails(data)
+        } catch (err) {
+          const errorMessage = err instanceof ApiError 
+            ? `API Error (${err.status}): ${err.message}`
+            : err instanceof Error 
+              ? err.message 
+              : "Failed to fetch conversation details"
+          setError(errorMessage)
+          console.error("Error fetching conversation details:", err)
+        } finally {
+          setIsLoading(false)
+        }
+      }
+
+      fetchConversationDetails()
+    }
+  }, [isOpen, conversation])
 
   if (!conversation) return null
 
@@ -186,31 +184,53 @@ export function ConversationDetailsModal({ conversation, isOpen, onClose }: Conv
                     <CardTitle className="text-lg text-emerald-400">Conversation Transcript</CardTitle>
                   </CardHeader>
                   <CardContent className="h-full overflow-hidden">
-                    <ScrollArea className="h-full">
-                      <div className="space-y-3">
-                        {mockTranscript.split("\n\n").map((segment, index) => {
-                          const [timestamp, ...textParts] = segment.split("] ")
-                          const speaker = textParts[0]?.split(": ")[0]
-                          const text = textParts[0]?.split(": ").slice(1).join(": ")
-
-                          return (
-                            <div key={index} className="flex gap-3">
-                              <div className="flex-shrink-0">
-                                <Badge variant="outline" className="text-xs">
-                                  {timestamp?.replace("[", "")}
-                                </Badge>
-                              </div>
-                              <div className="flex-1">
-                                <p className="text-sm">
-                                  <span className="font-medium text-emerald-400">{speaker}:</span>{" "}
-                                  <span className="text-slate-300">{text}</span>
-                                </p>
-                              </div>
-                            </div>
-                          )
-                        })}
+                    {isLoading ? (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-400 mx-auto mb-2"></div>
+                          <p className="text-slate-400">Loading transcript...</p>
+                        </div>
                       </div>
-                    </ScrollArea>
+                    ) : error ? (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center">
+                          <p className="text-red-400 mb-2">Error: {error}</p>
+                          <Button onClick={() => window.location.reload()} variant="outline" size="sm">
+                            Retry
+                          </Button>
+                        </div>
+                      </div>
+                    ) : conversationDetails?.transcript ? (
+                      <ScrollArea className="h-full">
+                        <div className="space-y-3">
+                          {conversationDetails.transcript.split("\n\n").map((segment, index) => {
+                            const [timestamp, ...textParts] = segment.split("] ")
+                            const speaker = textParts[0]?.split(": ")[0]
+                            const text = textParts[0]?.split(": ").slice(1).join(": ")
+
+                            return (
+                              <div key={index} className="flex gap-3">
+                                <div className="flex-shrink-0">
+                                  <Badge variant="outline" className="text-xs">
+                                    {timestamp?.replace("[", "")}
+                                  </Badge>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="text-sm">
+                                    <span className="font-medium text-emerald-400">{speaker}:</span>{" "}
+                                    <span className="text-slate-300">{text}</span>
+                                  </p>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </ScrollArea>
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <p className="text-slate-400">No transcript available</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>

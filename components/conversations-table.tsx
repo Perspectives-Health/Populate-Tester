@@ -8,91 +8,41 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Play, Search, Filter, Download } from "lucide-react"
 import type { Conversation } from "./conversations-dashboard"
+import { conversationsApi, type Conversation, ApiError } from "@/lib/api"
 
 interface ConversationsTableProps {
   onConversationSelect: (conversation: Conversation) => void
   selectedConversation: Conversation | null
 }
 
-// Mock data - replace with your actual API call
-const mockConversations: Conversation[] = [
-  {
-    id: "conv_001",
-    timestamp: "2024-01-15T10:30:00Z",
-    audioUrl: "/audio/recording_001.mp3",
-    originalAnswers: {
-      name: "John Doe",
-      email: "john@example.com",
-      phone: "+1234567890",
-      message: "I'm interested in your services",
-    },
-    formFields: [
-      { name: "name", type: "text", label: "Full Name", required: true },
-      { name: "email", type: "email", label: "Email Address", required: true },
-      { name: "phone", type: "tel", label: "Phone Number", required: false },
-      { name: "message", type: "textarea", label: "Message", required: true },
-    ],
-    metadata: {
-      duration: 45,
-      fileSize: 2.1,
-      quality: "high",
-    },
-  },
-  {
-    id: "conv_002",
-    timestamp: "2024-01-15T14:22:00Z",
-    audioUrl: "/audio/recording_002.mp3",
-    originalAnswers: {
-      firstName: "Jane",
-      lastName: "Smith",
-      company: "Tech Corp",
-      budget: "$10,000-$50,000",
-    },
-    formFields: [
-      { name: "firstName", type: "text", label: "First Name", required: true },
-      { name: "lastName", type: "text", label: "Last Name", required: true },
-      { name: "company", type: "text", label: "Company", required: false },
-      { name: "budget", type: "select", label: "Budget Range", required: true },
-    ],
-    metadata: {
-      duration: 67,
-      fileSize: 3.2,
-      quality: "medium",
-    },
-  },
-  {
-    id: "conv_003",
-    timestamp: "2024-01-16T09:15:00Z",
-    audioUrl: "/audio/recording_003.mp3",
-    originalAnswers: {
-      customerName: "Alice Johnson",
-      issueType: "Technical Support",
-      priority: "High",
-      description: "Unable to access dashboard after recent update",
-    },
-    formFields: [
-      { name: "customerName", type: "text", label: "Customer Name", required: true },
-      { name: "issueType", type: "select", label: "Issue Type", required: true },
-      { name: "priority", type: "select", label: "Priority", required: true },
-      { name: "description", type: "textarea", label: "Description", required: true },
-    ],
-    metadata: {
-      duration: 89,
-      fileSize: 4.1,
-      quality: "high",
-    },
-  },
-]
-
 export function ConversationsTable({ onConversationSelect, selectedConversation }: ConversationsTableProps) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [filteredConversations, setFilteredConversations] = useState<Conversation[]>([])
 
+  // Fetch conversations from API
   useEffect(() => {
-    // In a real app, this would be an API call
-    setConversations(mockConversations)
-    setFilteredConversations(mockConversations)
+    const fetchConversations = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+        const data = await conversationsApi.getAll()
+        setConversations(data)
+        setFilteredConversations(data)
+      } catch (err) {
+        const errorMessage = err instanceof ApiError 
+          ? `API Error (${err.status}): ${err.message}`
+          : err instanceof Error 
+            ? err.message 
+            : "Failed to fetch conversations"
+        setError(errorMessage)
+        console.error("Error fetching conversations:", err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchConversations()
   }, [])
 
   useEffect(() => {

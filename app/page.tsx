@@ -1,5 +1,6 @@
-import { ResizableDashboard } from "@/components/resizable-dashboard"
+
+import { ResizableDashboard } from "@/components/resizable-dashboard";
 
 export default function Home() {
-  return <ResizableDashboard />
+  return <ResizableDashboard />;
 }
