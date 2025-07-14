@@ -159,7 +159,7 @@ export function AdvancedResultsPanel({ results, selectedConversation, onClear, i
                               margin: 0, 
                               padding: 0, 
                               boxSizing: 'border-box', 
-                              whiteSpace: 'pre', // no wrapping, allow scroll
+                              whiteSpace: 'pre', 
                               wordBreak: 'normal',
                               minWidth: 0,
                               maxWidth: '100%'
@@ -177,9 +177,7 @@ export function AdvancedResultsPanel({ results, selectedConversation, onClear, i
           </div>
         )}
       </div>
-      {/* Add global style to fix syntax highlighter padding */}
       <style jsx global>{`
-        /* Fix react-syntax-highlighter padding issue */
         pre[class*='language-'] {
           padding-left: 16px !important;
           padding-right: 16px !important;
