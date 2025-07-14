@@ -72,7 +72,7 @@ export function AdvancedResultsPanel({ results, selectedConversation, onClear, i
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Code className="h-5 w-5 text-emerald-400" />
-            <h2 className="font-semibold neon-text">Test Results</h2>
+            <h2 className="heading-2-neon">Test Results</h2>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="neon-border">

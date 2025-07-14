@@ -13,6 +13,13 @@ export interface Conversation {
   extracted_info: string;
   center_name: string;
   mapping_screenshot_s3_link?: string;
+  // Optional properties for UI compatibility
+  name?: string;
+  email?: string;
+  metadata?: { duration?: number; quality?: string };
+  workflow?: string;
+  formFields?: any[];
+  originalAnswers?: Record<string, any>;
 }
 
 export interface PromptResponse {

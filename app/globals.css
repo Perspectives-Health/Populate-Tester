@@ -41,6 +41,59 @@
   }
 }
 
+@layer components {
+  /* Consistent heading styles */
+  .heading-1 {
+    @apply text-2xl font-bold text-foreground;
+  }
+  
+  .heading-2 {
+    @apply text-lg font-semibold text-foreground;
+  }
+  
+  .heading-3 {
+    @apply text-base font-semibold text-foreground;
+  }
+  
+  .heading-4 {
+    @apply text-sm font-semibold text-foreground;
+  }
+  
+  /* Neon heading variants */
+  .heading-1-neon {
+    @apply text-2xl font-bold neon-text;
+  }
+  
+  .heading-2-neon {
+    @apply text-lg font-semibold neon-text;
+  }
+  
+  .heading-3-neon {
+    @apply text-base font-semibold neon-text;
+  }
+  
+  .heading-4-neon {
+    @apply text-sm font-semibold neon-text;
+  }
+  
+  /* Accent heading variants */
+  .heading-1-accent {
+    @apply text-2xl font-bold text-emerald-400;
+  }
+  
+  .heading-2-accent {
+    @apply text-lg font-semibold text-emerald-400;
+  }
+  
+  .heading-3-accent {
+    @apply text-base font-semibold text-emerald-400;
+  }
+  
+  .heading-4-accent {
+    @apply text-sm font-semibold text-emerald-400;
+  }
+}
+
 /* Custom neon effects using standard Tailwind classes */
 .neon-border {
   @apply border border-emerald-400;

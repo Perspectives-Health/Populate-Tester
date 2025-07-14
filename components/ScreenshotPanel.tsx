@@ -23,7 +23,7 @@ export const ScreenshotPanel: React.FC<ScreenshotPanelProps> = ({ screenshotUrl 
     <div className="h-full w-full flex flex-col min-w-0 min-h-0">
       <div className="p-4 border-b border-slate-800 neon-accent flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="font-semibold neon-text">Screenshot</span>
+          <span className="heading-3-neon">Screenshot</span>
         </div>
       </div>
       <TransformWrapper

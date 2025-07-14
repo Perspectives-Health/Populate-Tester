@@ -76,7 +76,7 @@ export function TestResultsPanel({ results, selectedConversation }: TestResultsP
     <div className="h-full flex flex-col">
       <div className="p-4 border-b">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold">Test Results</h2>
+          <h2 className="heading-2">Test Results</h2>
           <Badge variant="secondary">{filteredResults.length}</Badge>
         </div>
       </div>

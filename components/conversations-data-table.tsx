@@ -123,7 +123,7 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
     <Card className="h-full flex flex-col">
       <CardHeader className="flex-shrink-0">
         <div className="flex items-center justify-between">
-          <CardTitle>Conversations ({conversations.length})</CardTitle>
+          <CardTitle className="heading-2-neon">Conversations ({conversations.length})</CardTitle>
           <Button onClick={loadConversations} variant="outline" size="sm">
             Refresh
           </Button>

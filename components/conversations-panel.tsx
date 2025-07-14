@@ -9,7 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowUpDown, Search, Filter, X } from "lucide-react"
-import { conversationsApi, type Conversation, ApiError } from "@/lib/api"
+import { apiService } from "@/lib/api"
+import type { Conversation } from "@/lib/api"
 
 interface ConversationsPanelProps {
   onSelectionChange: (conversations: Conversation[]) => void
@@ -30,15 +31,14 @@ export function ConversationsPanel({ onSelectionChange, selectedConversations }:
       try {
         setIsLoading(true)
         setError(null)
-        const data = await conversationsApi.getAll()
+        const data = await apiService.getConversations()
         setConversations(data)
         setFilteredConversations(data)
       } catch (err) {
-        const errorMessage = err instanceof ApiError 
-          ? `API Error (${err.status}): ${err.message}`
-          : err instanceof Error 
-            ? err.message 
-            : "Failed to fetch conversations"
+        let errorMessage = "Failed to fetch conversations"
+        if (err instanceof Error) {
+          errorMessage = err.message
+        }
         setError(errorMessage)
         console.error("Error fetching conversations:", err)
       } finally {
@@ -53,10 +53,10 @@ export function ConversationsPanel({ onSelectionChange, selectedConversations }:
   useEffect(() => {
     const filtered = conversations.filter((conv) => {
       const matchesSearch =
-        conv.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        conv.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        conv.workflow.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        conv.id.toLowerCase().includes(searchTerm.toLowerCase())
+        (conv.name?.toLowerCase() ?? "").includes(searchTerm.toLowerCase()) ||
+        (conv.email?.toLowerCase() ?? "").includes(searchTerm.toLowerCase()) ||
+        (conv.workflow?.toLowerCase() ?? "").includes(searchTerm.toLowerCase()) ||
+        (conv.id?.toLowerCase() ?? "").includes(searchTerm.toLowerCase())
 
       const matchesWorkflow = workflowFilter === "all" || conv.workflow === workflowFilter
 
@@ -66,7 +66,7 @@ export function ConversationsPanel({ onSelectionChange, selectedConversations }:
     setFilteredConversations(filtered)
   }, [conversations, searchTerm, workflowFilter])
 
-  const workflows = [...new Set(conversations.map((c) => c.workflow))]
+  const workflows = [...new Set(conversations.map((c) => c.workflow ?? ""))]
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -130,7 +130,7 @@ export function ConversationsPanel({ onSelectionChange, selectedConversations }:
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 border-b">
-        <h2 className="font-semibold mb-3">Conversations</h2>
+        <h2 className="heading-2 mb-3">Conversations</h2>
         <div className="relative">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -158,7 +158,7 @@ export function ConversationsPanel({ onSelectionChange, selectedConversations }:
                     <span className="font-mono text-sm">{conversation.id}</span>
                     <Checkbox
                       checked={isSelected(conversation)}
-                      onCheckedChange={(checked) => handleSelectConversation(conversation, checked)}
+                      onCheckedChange={(checked) => handleSelectConversation(conversation, Boolean(checked))}
                     />
                   </div>
 
@@ -166,29 +166,29 @@ export function ConversationsPanel({ onSelectionChange, selectedConversations }:
 
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs">
-                      {formatDuration(conversation.metadata.duration)}
+                      {formatDuration(conversation.metadata?.duration ?? 0)}
                     </Badge>
                     <Badge
-                      variant={conversation.metadata.quality === "high" ? "default" : "secondary"}
+                      variant={conversation.metadata?.quality === "high" ? "default" : "secondary"}
                       className="text-xs"
                     >
-                      {conversation.metadata.quality}
+                      {conversation.metadata?.quality ?? "unknown"}
                     </Badge>
                   </div>
 
                   <div className="text-xs">
-                    <span className="text-muted-foreground">{conversation.formFields.length} fields:</span>
+                    <span className="text-muted-foreground">{conversation.formFields?.length ?? 0} fields:</span>
                     <div className="mt-1 space-y-1">
-                      {Object.entries(conversation.originalAnswers)
+                      {Object.entries(conversation.originalAnswers ?? {})
                         .slice(0, 2)
                         .map(([key, value]) => (
                           <div key={key} className="truncate">
                             <span className="font-medium">{key}:</span> {String(value)}
                           </div>
                         ))}
-                      {Object.keys(conversation.originalAnswers).length > 2 && (
+                      {Object.keys(conversation.originalAnswers ?? {}).length > 2 && (
                         <div className="text-muted-foreground">
-                          +{Object.keys(conversation.originalAnswers).length - 2} more...
+                          +{Object.keys(conversation.originalAnswers ?? {}).length - 2} more...
                         </div>
                       )}
                     </div>
