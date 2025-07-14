@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Play, Zap, Save } from "lucide-react"
-import type { Conversation } from "./conversations-dashboard"
+import type { Conversation } from "@/lib/api"
 
 interface PromptTesterProps {
   onTest: (prompt: string, conversationIds: string[]) => Promise<void>

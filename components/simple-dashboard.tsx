@@ -4,24 +4,7 @@ import { useState } from "react"
 import { ConversationsPanel } from "@/components/conversations-panel"
 import { PromptTesterPanel } from "@/components/prompt-tester-panel"
 import { TestResultsPanel } from "@/components/test-results-panel"
-
-export interface Conversation {
-  id: string
-  timestamp: string
-  audioUrl: string
-  originalAnswers: Record<string, any>
-  formFields: Array<{
-    name: string
-    type: string
-    label: string
-    required: boolean
-  }>
-  metadata: {
-    duration: number
-    fileSize: number
-    quality: string
-  }
-}
+import { Conversation } from "@/lib/api"
 
 export interface TestResult {
   conversationId: string
@@ -31,34 +14,52 @@ export interface TestResult {
   processingTime: number
 }
 
+// Helper function to check if a result is empty or meaningless
+const isEmptyResult = (result: any): boolean => {
+  if (!result) return true
+  
+  // Check if result has meaningful content
+  const json = result?.result || result?.text || result || {}
+  
+  // If it's a string, check if it's empty or just whitespace
+  if (typeof json === 'string') {
+    const cleaned = json.trim()
+    if (!cleaned || cleaned === '{}' || cleaned === '[]' || cleaned === 'null') {
+      return true
+    }
+  }
+  
+  // If it's an object, check if it's empty or has only empty values
+  if (typeof json === 'object' && json !== null) {
+    const keys = Object.keys(json)
+    if (keys.length === 0) return true
+    
+    // Check if all values are empty
+    const hasNonEmptyValue = keys.some(key => {
+      const value = json[key]
+      if (value === null || value === undefined || value === '') return false
+      if (typeof value === 'string' && value.trim() === '') return false
+      if (typeof value === 'object' && Object.keys(value).length === 0) return false
+      return true
+    })
+    
+    if (!hasNonEmptyValue) return true
+  }
+  
+  return false
+}
+
 export function SimpleDashboard() {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
   const [testResults, setTestResults] = useState<TestResult[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
-  const handlePromptTest = async (prompt: string) => {
-    if (!selectedConversation) return
-
-    setIsLoading(true)
-
-    try {
-      const response = await fetch("/api/test-prompt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          conversationId: selectedConversation.id,
-          prompt,
-        }),
-      })
-
-      if (!response.ok) throw new Error("Failed to test prompt")
-
-      const result = await response.json()
+  const handleSetTestResult = (result: any) => {
+    // Only add non-empty results
+    if (!isEmptyResult(result)) {
       setTestResults((prev) => [result, ...prev])
-    } catch (error) {
-      console.error("Error testing prompt:", error)
-    } finally {
-      setIsLoading(false)
+    } else {
+      console.log('Skipping empty result:', result)
     }
   }
 
@@ -75,17 +76,18 @@ export function SimpleDashboard() {
         {/* Left Panel - Conversations */}
         <div className="w-80 border-r">
           <ConversationsPanel
-            onConversationSelect={setSelectedConversation}
-            selectedConversation={selectedConversation}
+            onSelectionChange={(conversations) => setSelectedConversation(conversations[0] || null)}
+            selectedConversations={selectedConversation ? [selectedConversation] : []}
           />
         </div>
 
         {/* Middle Panel - Prompt Tester (Main Feature) */}
         <div className="flex-1">
           <PromptTesterPanel
-            onTest={handlePromptTest}
             selectedConversation={selectedConversation}
             isLoading={isLoading}
+            setTestResult={handleSetTestResult}
+            setTestScreenshot={() => {}}
           />
         </div>
 

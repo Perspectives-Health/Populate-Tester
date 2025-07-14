@@ -146,19 +146,32 @@ export async function startTestPromptJob(payload: {
   prompt: string;
   screenshot_s3_link?: string;
 }): Promise<{ job_id: string }> {
+  console.log('API: Sending test prompt request to backend:', payload)
   const res = await fetch(`${API_BASE_URL}/internal/test-prompt`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error('Failed to start test prompt job');
-  return res.json();
+  
+  if (!res.ok) {
+    const errorText = await res.text()
+    console.error('API: Test prompt request failed:', res.status, errorText)
+    throw new Error(`Failed to start test prompt job: ${res.status} ${errorText}`);
+  }
+  
+  const result = await res.json()
+  console.log('API: Test prompt request successful:', result)
+  return result;
 }
 
 // Poll for job result
 export async function getTestPromptResult(job_id: string): Promise<any> {
   const res = await fetch(`${API_BASE_URL}/internal/test-prompt-result/${job_id}`);
-  if (!res.ok) throw new Error('Failed to get test prompt result');
+  if (!res.ok) {
+    const errorText = await res.text()
+    console.error('API: Test prompt result request failed:', res.status, errorText)
+    throw new Error(`Failed to get test prompt result: ${res.status} ${errorText}`);
+  }
   return res.json();
 }
 

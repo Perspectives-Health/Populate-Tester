@@ -44,9 +44,7 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
   }
 
   const filteredConversations = conversations.filter((conversation) =>
-    conversation.workflow_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    conversation.session_id.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+    conversation.workflow_id.toLowerCase().includes(searchTerm.toLowerCase())  )
 
   const formatTimestamp = (timestamp: string) => {
     try {
@@ -122,14 +120,15 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="h-full flex flex-col">
+      <CardHeader className="flex-shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle>Conversations ({conversations.length})</CardTitle>
           <Button onClick={loadConversations} variant="outline" size="sm">
             Refresh
           </Button>
         </div>
+        {/**
         <div className="flex items-center space-x-2">
           <Input
             placeholder="Search conversations..."
@@ -138,8 +137,9 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
             className="max-w-sm"
           />
         </div>
+        */}
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 overflow-hidden">
         <Dialog open={audioDialog.open} onOpenChange={open => setAudioDialog({ open, conversation: open ? audioDialog.conversation : null })}>
           <DialogContent>
             <DialogHeader>
@@ -157,7 +157,7 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
                 )}
                 <div>
                   <strong>Transcript:</strong>
-                  <div className="bg-slate-900 p-2 rounded mt-2 max-h-64 overflow-auto text-xs whitespace-pre-wrap">
+                  <div className="bg-slate-900 p-2 rounded mt-2 max-h-64 overflow-auto custom-scrollbar text-xs whitespace-pre-wrap">
                     {audioDialog.conversation?.extracted_info || "No transcript available."}
                   </div>
                 </div>
@@ -170,56 +170,58 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
             {searchTerm ? "No conversations match your search." : "No conversations found."}
           </div>
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Center Name</TableHead>
-                  <TableHead>Workflow Name</TableHead>
-                  <TableHead>Timestamp</TableHead>
-                  <TableHead>Audio Details</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredConversations.map((conversation) => (
-                  <TableRow
-                    key={conversation.id}
-                    className={selectedId === conversation.id ? "bg-emerald-950/30" : ""}
-                  >
-                    <TableCell>
-                      <Badge variant="secondary" className="font-mono text-xs">
-                        {conversation.center_name}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="font-mono text-xs">
-                        {conversation.workflow_name}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm text-muted-foreground">
-                        {formatTimestamp(conversation.timestamp)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Button size="sm" variant="outline" onClick={() => handleAudioDetails(conversation)}>
-                        Audio Details
-                      </Button>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant={selectedId === conversation.id ? "default" : "outline"}
-                        onClick={() => handleSelect(conversation)}
-                      >
-                        {selectedId === conversation.id ? "Selected" : "Select"}
-                      </Button>
-                    </TableCell>
+          <div className="h-full overflow-auto custom-scrollbar">
+            <div className="rounded-md border min-w-[800px] inline-block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[120px]">Center Name</TableHead>
+                    <TableHead className="min-w-[150px]">Workflow Name</TableHead>
+                    <TableHead className="min-w-[120px]">Timestamp</TableHead>
+                    <TableHead className="min-w-[100px]">Audio Details</TableHead>
+                    <TableHead className="min-w-[80px]"></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredConversations.map((conversation) => (
+                    <TableRow
+                      key={conversation.id}
+                      className={selectedId === conversation.id ? "bg-emerald-950/30" : ""}
+                    >
+                      <TableCell className="min-w-[120px]">
+                        <Badge variant="secondary" className="font-mono text-xs">
+                          {conversation.center_name}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="min-w-[150px]">
+                        <Badge variant="secondary" className="font-mono text-xs">
+                          {conversation.workflow_name}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="min-w-[120px]">
+                        <div className="text-sm text-muted-foreground">
+                          {formatTimestamp(conversation.timestamp)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="min-w-[100px]">
+                        <Button size="sm" variant="outline" onClick={() => handleAudioDetails(conversation)}>
+                          Audio Details
+                        </Button>
+                      </TableCell>
+                      <TableCell className="min-w-[80px]">
+                        <Button
+                          size="sm"
+                          variant={selectedId === conversation.id ? "default" : "outline"}
+                          onClick={() => handleSelect(conversation)}
+                        >
+                          {selectedId === conversation.id ? "Selected" : "Select"}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
       </CardContent>
