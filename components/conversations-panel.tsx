@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
 import { ArrowUpDown, Search, Filter, X } from "lucide-react"
 import { apiService } from "@/lib/api"
 import type { Conversation } from "@/lib/api"
@@ -25,23 +25,14 @@ export function ConversationsPanel({ onSelectionChange, selectedConversations }:
   const [workflowFilter, setWorkflowFilter] = useState<string>("all")
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [env, setEnv] = useState<"production" | "testing">(
-    process.env.NODE_ENV === "development" ? "testing" : "production"
-  )
+  const [env, setEnv] = useState<"production" | "testing">("testing")
 
   // URLs from env
-  const prodUrl = process.env.NEXT_PUBLIC_PROD_API_BASE_URL || "http://localhost:5001"
   const testUrl = process.env.NEXT_PUBLIC_TEST_API_BASE_URL || "http://localhost:5001"
 
   // Load state from localStorage on mount
   useEffect(() => {
     try {
-      // Load environment setting
-      const savedEnv = localStorage.getItem("conversations_panel_env")
-      if (savedEnv && (savedEnv === "production" || savedEnv === "testing")) {
-        setEnv(savedEnv)
-      }
-      
       // Load search term
       const savedSearchTerm = localStorage.getItem("conversations_panel_searchTerm")
       if (savedSearchTerm) {
@@ -58,10 +49,7 @@ export function ConversationsPanel({ onSelectionChange, selectedConversations }:
     }
   }, [])
 
-  // Save environment setting to localStorage
-  useEffect(() => {
-    localStorage.setItem("conversations_panel_env", env)
-  }, [env])
+
 
   // Save search term to localStorage
   useEffect(() => {
@@ -95,7 +83,7 @@ export function ConversationsPanel({ onSelectionChange, selectedConversations }:
 
   useEffect(() => {
     // Set the API base URL for conversations
-    setApiBaseUrl(env === "production" ? prodUrl : testUrl)
+    setApiBaseUrl(env === "production" ? testUrl : testUrl)
     fetchConversations()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [env])
@@ -190,15 +178,6 @@ export function ConversationsPanel({ onSelectionChange, selectedConversations }:
       <div className="p-4 border-b">
         <div className="flex items-center justify-between mb-3">
           <h2 className="heading-2">Conversations</h2>
-          <Select value={env} onValueChange={(val) => setEnv(val as "production" | "testing")}> 
-            <SelectTrigger className="w-[120px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="production">Production</SelectItem>
-              <SelectItem value="testing">Testing</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
         <div className="relative">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
