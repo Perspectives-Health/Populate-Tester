@@ -185,7 +185,7 @@ export function ConversationsDataTable({
   const formatDuration = (duration?: number) => {
     if (!duration) return "N/A"
     const minutes = Math.floor(duration / 60)
-    const seconds = duration % 60
+    const seconds = Math.floor(duration % 60) // Round to remove milliseconds
     return `${minutes}:${seconds.toString().padStart(2, '0')}`
   }
 
@@ -342,12 +342,12 @@ export function ConversationsDataTable({
           </div>
         ) : (
           <div className="h-full overflow-auto custom-scrollbar">
-            <div className="rounded-md border min-w-[900px] inline-block">
+            <div className="rounded-md border overflow-x-auto custom-scrollbar">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead 
-                      className="min-w-[120px] cursor-pointer hover:bg-slate-800/50"
+                      className="min-w-[100px] cursor-pointer hover:bg-slate-800/50"
                       onClick={() => handleSort('center_name')}
                     >
                       <div className="flex items-center gap-1">
@@ -356,7 +356,7 @@ export function ConversationsDataTable({
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="min-w-[150px] cursor-pointer hover:bg-slate-800/50"
+                      className="min-w-[120px] cursor-pointer hover:bg-slate-800/50"
                       onClick={() => handleSort('workflow_name')}
                     >
                       <div className="flex items-center gap-1">
@@ -365,7 +365,7 @@ export function ConversationsDataTable({
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="min-w-[120px] cursor-pointer hover:bg-slate-800/50"
+                      className="min-w-[100px] cursor-pointer hover:bg-slate-800/50"
                       onClick={() => handleSort('timestamp')}
                     >
                       <div className="flex items-center gap-1">
@@ -374,7 +374,7 @@ export function ConversationsDataTable({
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="min-w-[100px] cursor-pointer hover:bg-slate-800/50"
+                      className="min-w-[80px] cursor-pointer hover:bg-slate-800/50"
                       onClick={() => handleSort('duration')}
                     >
                       <div className="flex items-center gap-1">
@@ -383,7 +383,7 @@ export function ConversationsDataTable({
                       </div>
                     </TableHead>
 
-                    <TableHead className="min-w-[100px]">Audio Details</TableHead>
+                    <TableHead className="min-w-[80px]">Audio Details</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -395,28 +395,28 @@ export function ConversationsDataTable({
                       }`}
                       onClick={() => handleRowClick(conversation)}
                     >
-                      <TableCell className="min-w-[120px]">
+                      <TableCell className="min-w-[100px]">
                         <Badge variant="secondary" className="font-mono text-xs">
                           {conversation.center_name}
                         </Badge>
                       </TableCell>
-                      <TableCell className="min-w-[150px]">
+                      <TableCell className="min-w-[120px]">
                         <Badge variant="secondary" className="font-mono text-xs">
                           {conversation.workflow_name}
                         </Badge>
                       </TableCell>
-                      <TableCell className="min-w-[120px]">
+                      <TableCell className="min-w-[100px]">
                         <div className="text-sm text-muted-foreground">
                           {formatTimestamp(conversation.timestamp)}
                         </div>
                       </TableCell>
-                      <TableCell className="min-w-[100px]">
+                      <TableCell className="min-w-[80px]">
                         <div className="text-sm text-muted-foreground">
                           {formatDuration(audioDurations[conversation.id] || conversation.metadata?.duration)}
                         </div>
                       </TableCell>
 
-                      <TableCell className="min-w-[100px]">
+                      <TableCell className="min-w-[80px]">
                         <Button 
                           size="sm" 
                           variant="outline" 
