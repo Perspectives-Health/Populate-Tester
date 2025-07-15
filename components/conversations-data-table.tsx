@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { apiService, Conversation, setConversationsApiBaseUrl } from "@/lib/api"
+import { apiService, Conversation, setApiBaseUrl } from "@/lib/api"
 import { formatDistanceToNow } from "date-fns"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -35,7 +35,7 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
   const testUrl = process.env.NEXT_PUBLIC_TEST_API_BASE_URL || "http://localhost:5001"
 
   useEffect(() => {
-    setConversationsApiBaseUrl(env === "production" ? prodUrl : testUrl)
+    setApiBaseUrl(env === "production" ? prodUrl : testUrl)
     loadConversations()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [env])
@@ -55,6 +55,13 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
 
   const filteredConversations = conversations.filter((conversation) =>
     conversation.workflow_id.toLowerCase().includes(searchTerm.toLowerCase())  )
+
+  // Sort conversations by timestamp in descending order (latest first)
+  const sortedConversations = filteredConversations.sort((a, b) => {
+    const dateA = new Date(a.timestamp).getTime()
+    const dateB = new Date(b.timestamp).getTime()
+    return dateB - dateA // Descending order (latest first)
+  })
 
   const formatTimestamp = (timestamp: string) => {
     try {
@@ -186,7 +193,7 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
             )}
           </DialogContent>
         </Dialog>
-        {filteredConversations.length === 0 ? (
+        {sortedConversations.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             {searchTerm ? "No conversations match your search." : "No conversations found."}
           </div>
@@ -204,7 +211,7 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredConversations.map((conversation) => (
+                  {sortedConversations.map((conversation) => (
                     <TableRow
                       key={conversation.id}
                       className={selectedId === conversation.id ? "bg-emerald-950/30" : ""}
