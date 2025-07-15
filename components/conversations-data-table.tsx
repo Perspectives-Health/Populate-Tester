@@ -10,23 +10,33 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { apiService, Conversation, setApiBaseUrl } from "@/lib/api"
 import { formatDistanceToNow } from "date-fns"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { ChevronUp, ChevronDown } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+type SortField = 'center_name' | 'workflow_name' | 'timestamp' | 'duration'
+type SortDirection = 'asc' | 'desc'
+
+interface SortConfig {
+  field: SortField
+  direction: SortDirection
+}
 
 export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: Conversation | null) => void }) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState("")
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [env, setEnv] = useState<"production" | "testing">(
     process.env.NODE_ENV === "development" ? "testing" : "production"
   )
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ field: 'timestamp', direction: 'desc' })
+  const [audioDurations, setAudioDurations] = useState<Record<string, number>>({})
+  
   // Add a type for the audio dialog state that includes s3_link and extracted_info as optional fields
   const [audioDialog, setAudioDialog] = useState<{ open: boolean; conversation: (Conversation & { s3_link?: string; extracted_info?: string }) | null }>({ open: false, conversation: null });
 
@@ -39,6 +49,27 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
     loadConversations()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [env])
+
+  // Load audio durations when conversations change
+  useEffect(() => {
+    const loadDurations = async () => {
+      const conversationsWithAudio = conversations.filter(conv => conv.s3_link)
+      
+      for (const conversation of conversationsWithAudio) {
+        if (!audioDurations[conversation.id]) {
+          await getAudioDuration(conversation)
+        }
+      }
+    }
+
+    if (conversations.length > 0) {
+      loadDurations()
+    }
+  }, [conversations])
+
+  // Check if all durations are loaded
+  const allDurationsLoaded = conversations.length > 0 && 
+    conversations.filter(conv => conv.s3_link).every(conv => audioDurations[conv.id])
 
   const loadConversations = async () => {
     try {
@@ -53,14 +84,50 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
     }
   }
 
-  const filteredConversations = conversations.filter((conversation) =>
-    conversation.workflow_id.toLowerCase().includes(searchTerm.toLowerCase())  )
+  const getFieldValue = (conversation: Conversation, field: SortField) => {
+    switch (field) {
+      case 'center_name':
+        return conversation.center_name
+      case 'workflow_name':
+        return conversation.workflow_name
+      case 'timestamp':
+        return conversation.timestamp
+      case 'duration':
+        return audioDurations[conversation.id] || conversation.metadata?.duration || 0
+      default:
+        return ''
+    }
+  }
 
-  // Sort conversations by timestamp in descending order (latest first)
+  const handleSort = (field: SortField) => {
+    setSortConfig(prev => ({
+      field,
+      direction: prev.field === field && prev.direction === 'asc' ? 'desc' : 'asc'
+    }))
+  }
+
+  const getSortIcon = (field: SortField) => {
+    if (sortConfig.field !== field) return null
+    return sortConfig.direction === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+  }
+
+  const filteredConversations = conversations
+
   const sortedConversations = filteredConversations.sort((a, b) => {
-    const dateA = new Date(a.timestamp).getTime()
-    const dateB = new Date(b.timestamp).getTime()
-    return dateB - dateA // Descending order (latest first)
+    const aValue = getFieldValue(a, sortConfig.field)
+    const bValue = getFieldValue(b, sortConfig.field)
+    
+    let comparison = 0
+    
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      comparison = aValue.localeCompare(bValue)
+    } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+      comparison = aValue - bValue
+    } else {
+      comparison = String(aValue).localeCompare(String(bValue))
+    }
+    
+    return sortConfig.direction === 'asc' ? comparison : -comparison
   })
 
   const formatTimestamp = (timestamp: string) => {
@@ -72,12 +139,53 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
     }
   }
 
+  const formatDuration = (duration?: number) => {
+    if (!duration) return "N/A"
+    const minutes = Math.floor(duration / 60)
+    const seconds = duration % 60
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`
+  }
+
+  const getAudioDuration = async (conversation: Conversation) => {
+    if (audioDurations[conversation.id]) {
+      return audioDurations[conversation.id]
+    }
+
+    if (!conversation.s3_link) {
+      return null
+    }
+
+    try {
+      const audio = new Audio(conversation.s3_link)
+      
+      return new Promise<number>((resolve) => {
+        audio.addEventListener('loadedmetadata', () => {
+          const duration = audio.duration
+          setAudioDurations(prev => ({ ...prev, [conversation.id]: duration }))
+          resolve(duration)
+        })
+        
+        audio.addEventListener('error', () => {
+          resolve(0)
+        })
+        
+        // Set a timeout in case the audio doesn't load
+        setTimeout(() => {
+          resolve(0)
+        }, 5000)
+      })
+    } catch (error) {
+      console.error('Error loading audio duration:', error)
+      return 0
+    }
+  }
+
   const truncateText = (text: string, maxLength: number = 100) => {
     if (!text) return "No data"
     return text.length > maxLength ? `${text.substring(0, maxLength)}...` : text
   }
 
-  const handleSelect = (conversation: Conversation) => {
+  const handleRowClick = (conversation: Conversation) => {
     if (selectedId === conversation.id) {
       setSelectedId(null)
       onSelect(null)
@@ -156,16 +264,8 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
             </Button>
           </div>
         </div>
-        {/**
-        <div className="flex items-center space-x-2">
-          <Input
-            placeholder="Search conversations..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-sm"
-          />
-        </div>
-        */}
+        
+
       </CardHeader>
       <CardContent className="flex-1 overflow-hidden">
         <Dialog open={audioDialog.open} onOpenChange={open => setAudioDialog({ open, conversation: open ? audioDialog.conversation : null })}>
@@ -195,26 +295,64 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
         </Dialog>
         {sortedConversations.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            {searchTerm ? "No conversations match your search." : "No conversations found."}
+            No conversations found.
           </div>
         ) : (
           <div className="h-full overflow-auto custom-scrollbar">
-            <div className="rounded-md border min-w-[800px] inline-block">
+            <div className="rounded-md border min-w-[900px] inline-block">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="min-w-[120px]">Center Name</TableHead>
-                    <TableHead className="min-w-[150px]">Workflow Name</TableHead>
-                    <TableHead className="min-w-[120px]">Timestamp</TableHead>
+                    <TableHead 
+                      className="min-w-[120px] cursor-pointer hover:bg-slate-800/50"
+                      onClick={() => handleSort('center_name')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Center Name
+                        {getSortIcon('center_name')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="min-w-[150px] cursor-pointer hover:bg-slate-800/50"
+                      onClick={() => handleSort('workflow_name')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Workflow Name
+                        {getSortIcon('workflow_name')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="min-w-[120px] cursor-pointer hover:bg-slate-800/50"
+                      onClick={() => handleSort('timestamp')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Timestamp
+                        {getSortIcon('timestamp')}
+                      </div>
+                    </TableHead>
+                    {allDurationsLoaded && (
+                      <TableHead 
+                        className="min-w-[100px] cursor-pointer hover:bg-slate-800/50"
+                        onClick={() => handleSort('duration')}
+                      >
+                        <div className="flex items-center gap-1">
+                          Duration
+                          {getSortIcon('duration')}
+                        </div>
+                      </TableHead>
+                    )}
+
                     <TableHead className="min-w-[100px]">Audio Details</TableHead>
-                    <TableHead className="min-w-[80px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {sortedConversations.map((conversation) => (
                     <TableRow
                       key={conversation.id}
-                      className={selectedId === conversation.id ? "bg-emerald-950/30" : ""}
+                      className={`cursor-pointer hover:bg-slate-800/50 transition-colors ${
+                        selectedId === conversation.id ? "bg-emerald-950/30" : ""
+                      }`}
+                      onClick={() => handleRowClick(conversation)}
                     >
                       <TableCell className="min-w-[120px]">
                         <Badge variant="secondary" className="font-mono text-xs">
@@ -231,18 +369,24 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
                           {formatTimestamp(conversation.timestamp)}
                         </div>
                       </TableCell>
+                      {allDurationsLoaded && (
+                        <TableCell className="min-w-[100px]">
+                          <div className="text-sm text-muted-foreground">
+                            {formatDuration(audioDurations[conversation.id] || conversation.metadata?.duration)}
+                          </div>
+                        </TableCell>
+                      )}
+
                       <TableCell className="min-w-[100px]">
-                        <Button size="sm" variant="outline" onClick={() => handleAudioDetails(conversation)}>
-                          Audio Details
-                        </Button>
-                      </TableCell>
-                      <TableCell className="min-w-[80px]">
-                        <Button
-                          size="sm"
-                          variant={selectedId === conversation.id ? "default" : "outline"}
-                          onClick={() => handleSelect(conversation)}
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleAudioDetails(conversation)
+                          }}
                         >
-                          {selectedId === conversation.id ? "Selected" : "Select"}
+                          Audio Details
                         </Button>
                       </TableCell>
                     </TableRow>

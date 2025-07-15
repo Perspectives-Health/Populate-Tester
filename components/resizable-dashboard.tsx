@@ -1,42 +1,44 @@
 "use client"
 
-import React, { useState, useRef } from "react"
+import React, { useState, useRef, useEffect } from "react"
 import { ConversationsDataTable } from "@/components/conversations-data-table"
 import { PromptTesterPanel } from "@/components/prompt-tester-panel"
-import { AdvancedResultsPanel } from "@/components/advanced-results-panel"
+import { TestQueuePanel } from "@/components/test-queue-panel"
 import type { Conversation } from "@/lib/api"
-import { ScreenshotPanel } from "@/components/ScreenshotPanel";
-import { clearTestPromptResults } from "@/lib/api"
+import { startTestPromptJob } from "@/lib/api"
 
 export function ResizableDashboard() {
   // Single-select logic
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
-  const [testResults, setTestResults] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [isPending, setIsPending] = useState(false)
-  const pollingRef = useRef<NodeJS.Timeout | null>(null)
-
   // Panel width states (as percentages)
-  const [leftPanelWidth, setLeftPanelWidth] = useState(30)
-  const [middlePanelWidth, setMiddlePanelWidth] = useState(25)
-  const [rightPanelWidth, setRightPanelWidth] = useState(22.5)
-  const [rightPanel2Width, setRightPanel2Width] = useState(22.5)
-  const [isDragging, setIsDragging] = useState<"left" | "right" | "right2" | null>(null)
+  const [leftPanelWidth, setLeftPanelWidth] = useState(40)
+  const [middlePanelWidth, setMiddlePanelWidth] = useState(30)
+  const [rightPanelWidth, setRightPanelWidth] = useState(30)
+  const [isDragging, setIsDragging] = useState<"left" | "right" | null>(null)
 
-  // Handle test result from PromptTesterPanel
-  const handleTestResult = (result: any) => {
-    setTestResults((prev) => [result, ...prev])
-    setIsPending(false)
+  // Ref to the queue panel
+  const queuePanelRef = useRef<{ addToQueue: (jobData: any) => Promise<void> } | null>(null)
+
+  // Handle adding test to queue
+  const handleAddToQueue = async (jobData: any) => {
+    console.log('Test queued:', jobData)
+    console.log('Queue panel ref at time of call:', queuePanelRef.current)
+    // Call the queue panel's function directly
+    if (queuePanelRef.current) {
+      console.log('Calling queue panel addToQueue function')
+      await queuePanelRef.current.addToQueue(jobData)
+    } else {
+      console.log('Queue panel ref is null')
+    }
   }
 
-  const handleClearResults = async () => {
-    await clearTestPromptResults()
-    setTestResults([])
-    setIsPending(false)
-    if (pollingRef.current) clearInterval(pollingRef.current)
-  }
+  // Debug: Check when ref becomes available
+  useEffect(() => {
+    console.log('Queue panel ref:', queuePanelRef.current)
+  }, [queuePanelRef.current])
 
-  const handleMouseDown = (divider: "left" | "right" | "right2") => {
+  const handleMouseDown = (divider: "left" | "right") => {
     setIsDragging(divider)
   }
 
@@ -50,36 +52,20 @@ export function ResizableDashboard() {
       const newLeftWidth = Math.max(15, Math.min(60, mousePercentage))
       const remainingWidth = 100 - newLeftWidth
       // Keep proportions for the other panels
-      const totalRight = middlePanelWidth + rightPanelWidth + rightPanel2Width
-      const newMiddleWidth = (middlePanelWidth / totalRight) * remainingWidth
-      const newRightWidth = (rightPanelWidth / totalRight) * remainingWidth
-      const newRight2Width = remainingWidth - newMiddleWidth - newRightWidth
+      const newMiddleWidth = (middlePanelWidth / (middlePanelWidth + rightPanelWidth)) * remainingWidth
+      const newRightWidth = remainingWidth - newMiddleWidth
       setLeftPanelWidth(newLeftWidth)
       setMiddlePanelWidth(newMiddleWidth)
       setRightPanelWidth(newRightWidth)
-      setRightPanel2Width(newRight2Width)
     } else if (isDragging === "right") {
       // Adjust middle and right panels
       const leftBoundary = leftPanelWidth
-      const rightBoundary = leftPanelWidth + middlePanelWidth + rightPanelWidth
+      const rightBoundary = 100
       const adjustedMousePercentage = Math.max(leftBoundary + 10, Math.min(rightBoundary - 10, mousePercentage))
       const newMiddleWidth = adjustedMousePercentage - leftPanelWidth
-      const remainingWidth = 100 - leftPanelWidth - newMiddleWidth
-      const totalRight = rightPanelWidth + rightPanel2Width
-      const newRightWidth = (rightPanelWidth / totalRight) * remainingWidth
-      const newRight2Width = remainingWidth - newRightWidth
+      const newRightWidth = 100 - leftPanelWidth - newMiddleWidth
       setMiddlePanelWidth(newMiddleWidth)
       setRightPanelWidth(newRightWidth)
-      setRightPanel2Width(newRight2Width)
-    } else if (isDragging === "right2") {
-      // Adjust right and right2 panels
-      const leftBoundary = leftPanelWidth + middlePanelWidth
-      const rightBoundary = 100
-      const adjustedMousePercentage = Math.max(leftBoundary + rightPanelWidth * 0.2, Math.min(rightBoundary - 10, mousePercentage))
-      const newRightWidth = adjustedMousePercentage - leftBoundary
-      const newRight2Width = 100 - leftPanelWidth - middlePanelWidth - newRightWidth
-      setRightPanelWidth(newRightWidth)
-      setRightPanel2Width(newRight2Width)
     }
   }
 
@@ -87,10 +73,10 @@ export function ResizableDashboard() {
     setIsDragging(null)
   }
 
-  // Clean up polling on unmount
+  // Clean up on unmount
   React.useEffect(() => {
     return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current)
+      // Cleanup if needed
     }
   }, [])
 
@@ -128,8 +114,9 @@ export function ResizableDashboard() {
           <PromptTesterPanel
             selectedConversation={selectedConversation}
             isLoading={isLoading}
-            setTestResult={handleTestResult}
+            setTestResult={() => {}}
             setTestScreenshot={() => {}}
+            onAddToQueue={handleAddToQueue}
           />
         </div>
         {/* Right Divider */}
@@ -141,27 +128,13 @@ export function ResizableDashboard() {
         >
           <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-emerald-400/20" />
         </div>
-        {/* Right Panel - Advanced Results */}
+        {/* Right Panel - Test Queue */}
         <div className="overflow-hidden flex-shrink-0" style={{ width: `${rightPanelWidth}%` }}>
-          <AdvancedResultsPanel
-            results={testResults}
+          <TestQueuePanel
             selectedConversation={selectedConversation}
-            onClear={handleClearResults}
-            isPending={isPending}
+            onAddToQueue={handleAddToQueue}
+            ref={queuePanelRef}
           />
-        </div>
-        {/* Right2 Divider */}
-        <div
-          className={`w-1 bg-slate-800 hover:bg-emerald-400/50 cursor-col-resize transition-colors relative group flex-shrink-0 ${
-            isDragging === "right2" ? "bg-emerald-400" : ""
-          }`}
-          onMouseDown={() => handleMouseDown("right2")}
-        >
-          <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-emerald-400/20" />
-        </div>
-        {/* New Fourth Panel - Screenshot */}
-        <div className="overflow-hidden flex-shrink-0" style={{ width: `${rightPanel2Width}%`, height: '100%' }}>
-          <ScreenshotPanel screenshotUrl={selectedConversation?.mapping_screenshot_s3_link} />
         </div>
       </div>
     </div>

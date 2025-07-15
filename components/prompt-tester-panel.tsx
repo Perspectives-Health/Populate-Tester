@@ -16,6 +16,7 @@ interface PromptTesterPanelProps {
   isLoading: boolean
   setTestResult: (result: any) => void
   setTestScreenshot: (url: string | null) => void
+  onAddToQueue: (jobData: any) => Promise<void>
 }
 
 // Helper function to check if a result is empty or meaningless
@@ -53,7 +54,7 @@ const isEmptyResult = (result: any): boolean => {
   return false
 }
 
-export function PromptTesterPanel({ selectedConversation, isLoading, setTestResult, setTestScreenshot }: PromptTesterPanelProps) {
+export function PromptTesterPanel({ selectedConversation, isLoading, setTestResult, setTestScreenshot, onAddToQueue }: PromptTesterPanelProps) {
   const [defaultPrompt, setDefaultPrompt] = useState("")
   const [data, setData] = useState("")
   const [loadingPrompt, setLoadingPrompt] = useState(false)
@@ -136,104 +137,31 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
 
   const handleTest = async () => {
     if (!promptInput.trim() || !selectedConversation) return
-    setTestLoading(true)
-    setTestScreenshot(null)
-    setTestResult(null)
-    setJobStatus('pending')
-    setJobId(null)
     
-    // Clear any existing polling
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current)
-      pollingRef.current = null
-    }
-    if (pollingTimeoutRef.current) {
-      clearTimeout(pollingTimeoutRef.current)
-      pollingTimeoutRef.current = null
-    }
-    
-    // Start the job
     try {
-      const req = {
+      setTestLoading(true)
+      
+      // Add test to queue
+      await onAddToQueue({
         conversation_id: selectedConversation.id,
         workflow_id: selectedConversation.workflow_id,
         prompt: promptInput,
-        screenshot_s3_link: selectedConversation.mapping_screenshot_s3_link || undefined,
-      }
-      console.log('Sending test prompt request:', req)
-      const { job_id } = await startTestPromptJob(req)
-      setJobId(job_id)
+        screenshot_s3_link: selectedConversation.mapping_screenshot_s3_link
+      })
       
-      // Start polling every 5 seconds with initial delay
-      pollingTimeoutRef.current = setTimeout(() => {
-        console.log('Starting polling for job:', job_id)
-        let pollCount = 0;
-        const maxPolls = 60; // 5 minutes max (60 * 5 seconds)
-        
-        pollingRef.current = setInterval(async () => {
-          pollCount++;
-          console.log(`Poll attempt ${pollCount}/${maxPolls}`)
-          
-          if (pollCount > maxPolls) {
-            console.log('Max polls reached, stopping')
-            setTestResult({ error: 'Job timed out after 5 minutes' })
-            setTestScreenshot(null)
-            setJobStatus('error')
-            setTestLoading(false)
-            if (pollingRef.current) {
-              clearInterval(pollingRef.current)
-              pollingRef.current = null
-            }
-            return;
-          }
-          
-          try {
-            const res = await getTestPromptResult(job_id)
-            console.log('Polling result:', res)
-            
-            if (res.status === 'done') {
-              console.log('Job completed, setting result:', res)
-              // Only add non-empty results
-              if (!isEmptyResult(res)) {
-                setTestResult(res)
-              } else {
-                console.log('Skipping empty result:', res)
-              }
-              setTestScreenshot(res.screenshot_url || null)
-              setJobStatus('done')
-              setTestLoading(false)
-              if (pollingRef.current) {
-                clearInterval(pollingRef.current)
-                pollingRef.current = null
-              }
-            } else if (res.status === 'error') {
-              console.log('Job failed:', res.error)
-              setTestResult({ error: res.error })
-              setTestScreenshot(null)
-              setJobStatus('error')
-              setTestLoading(false)
-              if (pollingRef.current) {
-                clearInterval(pollingRef.current)
-                pollingRef.current = null
-              }
-            } else if (res.status === 'pending') {
-              console.log('Job still pending...')
-            }
-            // If status is 'pending', continue polling
-          } catch (error) {
-            console.error('Polling error:', error)
-            // Don't immediately fail on polling errors, just log them
-            // Only fail if we get multiple consecutive errors
-          }
-        }, 5000)
-      }, 2000) // Initial delay to let the job start
+      // Don't clear the prompt input - allow user to test the same prompt again
+      
     } catch (err) {
-      console.error('Test prompt error:', err)
-      setTestResult({ error: err instanceof Error ? err.message : String(err) })
-      setTestScreenshot(null)
-      setJobStatus('error')
+      console.error('Error adding test to queue:', err)
+    } finally {
       setTestLoading(false)
     }
+  }
+
+  const handleClear = () => {
+    setPromptInput("")
+    setCustomPrompt(null)
+    localStorage.removeItem("customPrompt")
   }
 
   return (
@@ -284,25 +212,36 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
           />
         </div>
       </div>
-      <div className="px-8 pb-8 flex flex-col gap-2">
-        <Button
-          onClick={handleTest}
-          disabled={!promptInput.trim() || !selectedConversation || loadingPrompt || testLoading}
-          className="w-full h-12 text-lg neon-glow bg-emerald-600 hover:bg-emerald-700 mt-4"
-          size="lg"
-        >
-          {testLoading ? (
-            <>
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3" />
-              Testing...
-            </>
-          ) : (
-            <>
-              <Play className="h-5 w-5 mr-3" />
-              Test Prompt
-            </>
-          )}
-        </Button>
+              <div className="px-8 pb-8 flex flex-col gap-2">
+          <div className="flex gap-2">
+            <Button
+              onClick={handleTest}
+              disabled={!promptInput.trim() || !selectedConversation || loadingPrompt}
+              className="flex-1 h-12 text-lg neon-glow bg-emerald-600 hover:bg-emerald-700 mt-4"
+              size="lg"
+            >
+              {testLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3" />
+                  Adding to Queue...
+                </>
+              ) : (
+                <>
+                  <Play className="h-5 w-5 mr-3" />
+                  Test Prompt
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={handleClear}
+              disabled={!promptInput.trim()}
+              variant="outline"
+              className="h-12 px-4 text-lg mt-4"
+              size="lg"
+            >
+              Clear
+            </Button>
+          </div>
         {jobStatus === 'pending' && <p className="text-sm text-slate-400 text-center mt-2">Running... (Status: {jobStatus})</p>}
         {jobStatus === 'done' && <p className="text-sm text-green-400 text-center mt-2">Completed! (Status: {jobStatus})</p>}
         {jobStatus === 'error' && <p className="text-sm text-red-400 text-center mt-2">Error running prompt. See result panel for details. (Status: {jobStatus})</p>}
