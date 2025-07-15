@@ -26,7 +26,13 @@ interface SortConfig {
   direction: SortDirection
 }
 
-export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: Conversation | null) => void }) {
+export function ConversationsDataTable({ 
+  onSelect, 
+  onConversationsLoad 
+}: { 
+  onSelect: (conversation: Conversation | null) => void
+  onConversationsLoad?: (conversations: Conversation[]) => void
+}) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -113,6 +119,7 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
       setError(null)
       const data = await apiService.getConversations()
       setConversations(data)
+      onConversationsLoad?.(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load conversations")
     } finally {

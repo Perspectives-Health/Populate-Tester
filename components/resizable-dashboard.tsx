@@ -10,6 +10,7 @@ import { startTestPromptJob } from "@/lib/api"
 export function ResizableDashboard() {
   // Single-select logic with localStorage persistence
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
+  const [conversations, setConversations] = useState<Conversation[]>([])
   const [isLoading, setIsLoading] = useState(false)
   
   // Panel width states (as percentages) with localStorage persistence
@@ -144,6 +145,7 @@ export function ResizableDashboard() {
         <div className="overflow-hidden flex-shrink-0" style={{ width: `${leftPanelWidth}%` }}>
           <ConversationsDataTable
             onSelect={setSelectedConversation}
+            onConversationsLoad={setConversations}
           />
         </div>
         {/* Left Divider */}
@@ -179,6 +181,7 @@ export function ResizableDashboard() {
           <TestQueuePanel
             selectedConversation={selectedConversation}
             onAddToQueue={handleAddToQueue}
+            conversations={conversations}
             ref={queuePanelRef}
           />
         </div>

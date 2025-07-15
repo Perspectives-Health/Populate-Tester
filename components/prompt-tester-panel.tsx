@@ -145,6 +145,8 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
       await onAddToQueue({
         conversation_id: selectedConversation.id,
         workflow_id: selectedConversation.workflow_id,
+        center_name: selectedConversation.center_name,
+        workflow_name: selectedConversation.workflow_name,
         prompt: promptInput,
         screenshot_s3_link: selectedConversation.mapping_screenshot_s3_link
       })

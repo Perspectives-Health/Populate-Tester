@@ -13,6 +13,8 @@ interface TestJob {
   id: string
   conversation_id: string
   workflow_id: string
+  center_name?: string
+  workflow_name?: string
   prompt: string
   status: 'pending' | 'done' | 'error'
   timestamp: string
@@ -25,10 +27,11 @@ interface TestJob {
 interface TestQueuePanelProps {
   selectedConversation: any
   onAddToQueue: (jobData: any) => Promise<void>
+  conversations?: any[] // Add conversations list to look up names
 }
 
 export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise<void> }, TestQueuePanelProps>(
-  ({ selectedConversation, onAddToQueue }, ref) => {
+  ({ selectedConversation, onAddToQueue, conversations }, ref) => {
   const [testJobs, setTestJobs] = useState<TestJob[]>([])
   const [pollingJobs, setPollingJobs] = useState<Set<string>>(new Set())
   const [isProcessing, setIsProcessing] = useState(false)
@@ -62,6 +65,35 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
       console.log('TestQueuePanel: No saved test jobs found in localStorage')
     }
   }, [])
+
+  // Update existing jobs with proper names when conversations are loaded
+  useEffect(() => {
+    if (conversations && conversations.length > 0 && testJobs.length > 0) {
+      console.log('TestQueuePanel: Updating jobs with conversation names')
+      const updatedJobs = testJobs.map((job: TestJob) => {
+        if (!job.center_name || !job.workflow_name) {
+          const conversation = conversations.find(c => c.id === job.conversation_id)
+          return {
+            ...job,
+            center_name: job.center_name || conversation?.center_name || 'Unknown',
+            workflow_name: job.workflow_name || conversation?.workflow_name || job.workflow_id || 'Unknown'
+          }
+        }
+        return job
+      })
+      
+      // Only update if there are actual changes
+      const hasChanges = updatedJobs.some((job, index) => 
+        job.center_name !== testJobs[index]?.center_name || 
+        job.workflow_name !== testJobs[index]?.workflow_name
+      )
+      
+      if (hasChanges) {
+        console.log('TestQueuePanel: Updating jobs with new names')
+        setTestJobs(updatedJobs)
+      }
+    }
+  }, [conversations, testJobs.length])
 
   // Save test jobs to localStorage whenever they change
   useEffect(() => {
@@ -155,13 +187,14 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
 
   // Handle adding new job to queue
   const handleAddToQueue = async (jobData: any) => {
-    console.log('Queue panel handleAddToQueue called with:', jobData)
     try {
       // Create a new job entry
       const newJob: TestJob = {
         id: `job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         conversation_id: jobData.conversation_id,
         workflow_id: jobData.workflow_id,
+        center_name: jobData.center_name,
+        workflow_name: jobData.workflow_name,
         prompt: jobData.prompt,
         status: 'pending',
         timestamp: new Date().toISOString(),
@@ -311,10 +344,13 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
                 <CardContent className="pt-0">
                   <div className="space-y-2">
                     <div className="text-sm text-slate-400">
-                      Conversation: {job.conversation_id}
+                      <span className="font-medium">Job ID:</span> {job.id}
                     </div>
                     <div className="text-sm text-slate-400">
-                      Workflow: {job.workflow_id}
+                      <span className="font-medium">Center:</span> {job.center_name || 'Unknown'}
+                    </div>
+                    <div className="text-sm text-slate-400">
+                      <span className="font-medium">Workflow:</span> {job.workflow_name || job.workflow_id || 'Unknown'}
                     </div>
                     {job.timestamp && (
                       <div className="text-xs text-slate-500">
