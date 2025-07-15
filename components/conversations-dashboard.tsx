@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { ConversationsDataTable } from "@/components/conversations-data-table"
@@ -16,6 +16,68 @@ export function ConversationsDashboard() {
   const [isLoading] = useState(false)
   const [testResult, setTestResult] = useState<any>(null)
   const [testScreenshot, setTestScreenshot] = useState<string | null>(null)
+
+  // Load state from localStorage on mount
+  useEffect(() => {
+    try {
+      // Load selected conversation
+      const savedConversation = localStorage.getItem("conversations_dashboard_selectedConversation")
+      if (savedConversation) {
+        try {
+          const conversation = JSON.parse(savedConversation)
+          setSelectedConversation(conversation)
+        } catch (error) {
+          console.error('Error parsing saved conversation:', error)
+        }
+      }
+      
+      // Load test result
+      const savedTestResult = localStorage.getItem("conversations_dashboard_testResult")
+      if (savedTestResult) {
+        try {
+          const result = JSON.parse(savedTestResult)
+          setTestResult(result)
+        } catch (error) {
+          console.error('Error parsing saved test result:', error)
+        }
+      }
+      
+      // Load test screenshot
+      const savedTestScreenshot = localStorage.getItem("conversations_dashboard_testScreenshot")
+      if (savedTestScreenshot) {
+        setTestScreenshot(savedTestScreenshot)
+      }
+    } catch (error) {
+      console.error('Error loading conversations dashboard state:', error)
+    }
+  }, [])
+
+  // Save selected conversation to localStorage whenever it changes
+  useEffect(() => {
+    if (selectedConversation) {
+      localStorage.setItem("conversations_dashboard_selectedConversation", JSON.stringify(selectedConversation))
+    } else {
+      localStorage.removeItem("conversations_dashboard_selectedConversation")
+    }
+  }, [selectedConversation])
+
+  // Save test result to localStorage whenever it changes
+  useEffect(() => {
+    if (testResult) {
+      localStorage.setItem("conversations_dashboard_testResult", JSON.stringify(testResult))
+    } else {
+      localStorage.removeItem("conversations_dashboard_testResult")
+    }
+  }, [testResult])
+
+  // Save test screenshot to localStorage whenever it changes
+  useEffect(() => {
+    if (testScreenshot) {
+      localStorage.setItem("conversations_dashboard_testScreenshot", testScreenshot)
+    } else {
+      localStorage.removeItem("conversations_dashboard_testScreenshot")
+    }
+  }, [testScreenshot])
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -39,6 +101,7 @@ export function ConversationsDashboard() {
                 isLoading={isLoading}
                 setTestResult={setTestResult}
                 setTestScreenshot={setTestScreenshot}
+                onAddToQueue={async () => {}}
               />
               <Separator />
               <ResultsPanel

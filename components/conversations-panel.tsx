@@ -33,6 +33,46 @@ export function ConversationsPanel({ onSelectionChange, selectedConversations }:
   const prodUrl = process.env.NEXT_PUBLIC_PROD_API_BASE_URL || "http://localhost:5001"
   const testUrl = process.env.NEXT_PUBLIC_TEST_API_BASE_URL || "http://localhost:5001"
 
+  // Load state from localStorage on mount
+  useEffect(() => {
+    try {
+      // Load environment setting
+      const savedEnv = localStorage.getItem("conversations_panel_env")
+      if (savedEnv && (savedEnv === "production" || savedEnv === "testing")) {
+        setEnv(savedEnv)
+      }
+      
+      // Load search term
+      const savedSearchTerm = localStorage.getItem("conversations_panel_searchTerm")
+      if (savedSearchTerm) {
+        setSearchTerm(savedSearchTerm)
+      }
+      
+      // Load workflow filter
+      const savedWorkflowFilter = localStorage.getItem("conversations_panel_workflowFilter")
+      if (savedWorkflowFilter) {
+        setWorkflowFilter(savedWorkflowFilter)
+      }
+    } catch (error) {
+      console.error('Error loading conversations panel state:', error)
+    }
+  }, [])
+
+  // Save environment setting to localStorage
+  useEffect(() => {
+    localStorage.setItem("conversations_panel_env", env)
+  }, [env])
+
+  // Save search term to localStorage
+  useEffect(() => {
+    localStorage.setItem("conversations_panel_searchTerm", searchTerm)
+  }, [searchTerm])
+
+  // Save workflow filter to localStorage
+  useEffect(() => {
+    localStorage.setItem("conversations_panel_workflowFilter", workflowFilter)
+  }, [workflowFilter])
+
   // Fetch conversations from API
   const fetchConversations = async () => {
     try {
