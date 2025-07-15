@@ -16,7 +16,6 @@ import { apiService, Conversation, setApiBaseUrl } from "@/lib/api"
 import { formatDistanceToNow } from "date-fns"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { ChevronUp, ChevronDown } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 type SortField = 'center_name' | 'workflow_name' | 'timestamp' | 'duration'
 type SortDirection = 'asc' | 'desc'
@@ -37,9 +36,7 @@ export function ConversationsDataTable({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [env, setEnv] = useState<"production" | "testing">(
-    process.env.NODE_ENV === "development" ? "testing" : "production"
-  )
+  const [env, setEnv] = useState<"production" | "testing">("testing")
   const [sortConfig, setSortConfig] = useState<SortConfig>({ field: 'timestamp', direction: 'desc' })
   const [audioDurations, setAudioDurations] = useState<Record<string, number>>({})
   
@@ -53,12 +50,6 @@ export function ConversationsDataTable({
   // Load state from localStorage on mount
   useEffect(() => {
     try {
-      // Load environment setting
-      const savedEnv = localStorage.getItem("conversations_env")
-      if (savedEnv && (savedEnv === "production" || savedEnv === "testing")) {
-        setEnv(savedEnv)
-      }
-      
       // Load sort configuration
       const savedSortConfig = localStorage.getItem("conversations_sortConfig")
       if (savedSortConfig) {
@@ -76,10 +67,7 @@ export function ConversationsDataTable({
     }
   }, [])
 
-  // Save environment setting to localStorage
-  useEffect(() => {
-    localStorage.setItem("conversations_env", env)
-  }, [env])
+
 
   // Save sort configuration to localStorage
   useEffect(() => {
@@ -293,15 +281,6 @@ export function ConversationsDataTable({
         <div className="flex items-center justify-between">
           <CardTitle className="heading-2-neon">Conversations ({conversations.length})</CardTitle>
           <div className="flex items-center gap-2">
-            <Select value={env} onValueChange={(val) => setEnv(val as "production" | "testing")}> 
-              <SelectTrigger className="w-[120px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="production">Production</SelectItem>
-                <SelectItem value="testing">Testing</SelectItem>
-              </SelectContent>
-            </Select>
             <Button onClick={loadConversations} variant="outline" size="sm">
               Refresh
             </Button>
