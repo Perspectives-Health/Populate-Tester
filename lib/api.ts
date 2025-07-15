@@ -5,11 +5,11 @@
 const PROD_API_BASE_URL = process.env.NEXT_PUBLIC_PROD_API_BASE_URL || 'http://localhost:5001';
 const TEST_API_BASE_URL = process.env.NEXT_PUBLIC_TEST_API_BASE_URL || 'http://localhost:5001';
 
-// Default to production for conversations, but allow toggling
-let conversationsBaseUrl = PROD_API_BASE_URL;
+// Default to production, but allow toggling for ALL APIs
+let currentApiBaseUrl = PROD_API_BASE_URL;
 
-export function setConversationsApiBaseUrl(url: string) {
-  conversationsBaseUrl = url;
+export function setApiBaseUrl(url: string) {
+  currentApiBaseUrl = url;
 }
 
 export interface Conversation {
@@ -71,9 +71,9 @@ export interface UserSessionsResponse {
 }
 
 class ApiService {
-  // Use the dynamic conversationsBaseUrl
+  // Use the dynamic currentApiBaseUrl for ALL APIs
   private get baseUrl() {
-    return conversationsBaseUrl;
+    return currentApiBaseUrl;
   }
 
   private async request<T>(
@@ -153,14 +153,14 @@ class ApiService {
 
 export const apiService = new ApiService(); 
 
-// Always use the TEST API for test prompt jobs
+// Use the dynamic currentApiBaseUrl for test prompt jobs
 export async function startTestPromptJob(payload: {
   conversation_id: string;
   workflow_id: string;
   prompt: string;
   screenshot_s3_link?: string;
 }): Promise<{ job_id: string }> {
-  const url = `${TEST_API_BASE_URL}/internal/test-prompt`;
+  const url = `${currentApiBaseUrl}/internal/test-prompt`;
   console.log('API: Sending test prompt request to backend:', payload)
   const res = await fetch(url, {
     method: 'POST',
@@ -181,7 +181,7 @@ export async function startTestPromptJob(payload: {
 
 // Poll for job result
 export async function getTestPromptResult(job_id: string): Promise<any> {
-  const url = `${TEST_API_BASE_URL}/internal/test-prompt-result/${job_id}`;
+  const url = `${currentApiBaseUrl}/internal/test-prompt-result/${job_id}`;
   const res = await fetch(url);
   if (!res.ok) {
     const errorText = await res.text()
@@ -193,7 +193,7 @@ export async function getTestPromptResult(job_id: string): Promise<any> {
 
 // Clear all test prompt results
 export async function clearTestPromptResults(): Promise<void> {
-  const url = `${TEST_API_BASE_URL}/internal/test-prompt-clear`;
+  const url = `${currentApiBaseUrl}/internal/test-prompt-clear`;
   const res = await fetch(url, { method: 'POST' });
   if (!res.ok) throw new Error('Failed to clear test prompt results');
 } 

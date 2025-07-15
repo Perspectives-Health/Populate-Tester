@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowUpDown, Search, Filter, X } from "lucide-react"
 import { apiService } from "@/lib/api"
 import type { Conversation } from "@/lib/api"
-import { setConversationsApiBaseUrl } from "@/lib/api"
+import { setApiBaseUrl } from "@/lib/api"
 
 interface ConversationsPanelProps {
   onSelectionChange: (conversations: Conversation[]) => void
@@ -55,7 +55,7 @@ export function ConversationsPanel({ onSelectionChange, selectedConversations }:
 
   useEffect(() => {
     // Set the API base URL for conversations
-    setConversationsApiBaseUrl(env === "production" ? prodUrl : testUrl)
+    setApiBaseUrl(env === "production" ? prodUrl : testUrl)
     fetchConversations()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [env])
@@ -74,7 +74,14 @@ export function ConversationsPanel({ onSelectionChange, selectedConversations }:
       return matchesSearch && matchesWorkflow
     })
 
-    setFilteredConversations(filtered)
+    // Sort conversations by timestamp in descending order (latest first)
+    const sorted = filtered.sort((a, b) => {
+      const dateA = new Date(a.timestamp).getTime()
+      const dateB = new Date(b.timestamp).getTime()
+      return dateB - dateA // Descending order (latest first)
+    })
+
+    setFilteredConversations(sorted)
   }, [conversations, searchTerm, workflowFilter])
 
   const workflows = [...new Set(conversations.map((c) => c.workflow ?? ""))]
