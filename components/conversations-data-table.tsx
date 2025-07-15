@@ -44,6 +44,42 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
   const prodUrl = process.env.NEXT_PUBLIC_PROD_API_BASE_URL || "http://localhost:5001"
   const testUrl = process.env.NEXT_PUBLIC_TEST_API_BASE_URL || "http://localhost:5001"
 
+  // Load state from localStorage on mount
+  useEffect(() => {
+    try {
+      // Load environment setting
+      const savedEnv = localStorage.getItem("conversations_env")
+      if (savedEnv && (savedEnv === "production" || savedEnv === "testing")) {
+        setEnv(savedEnv)
+      }
+      
+      // Load sort configuration
+      const savedSortConfig = localStorage.getItem("conversations_sortConfig")
+      if (savedSortConfig) {
+        try {
+          const parsed = JSON.parse(savedSortConfig)
+          if (parsed.field && parsed.direction) {
+            setSortConfig(parsed)
+          }
+        } catch (error) {
+          console.error('Error parsing saved sort config:', error)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading conversations state:', error)
+    }
+  }, [])
+
+  // Save environment setting to localStorage
+  useEffect(() => {
+    localStorage.setItem("conversations_env", env)
+  }, [env])
+
+  // Save sort configuration to localStorage
+  useEffect(() => {
+    localStorage.setItem("conversations_sortConfig", JSON.stringify(sortConfig))
+  }, [sortConfig])
+
   useEffect(() => {
     setApiBaseUrl(env === "production" ? prodUrl : testUrl)
     loadConversations()
@@ -330,17 +366,15 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
                         {getSortIcon('timestamp')}
                       </div>
                     </TableHead>
-                    {allDurationsLoaded && (
-                      <TableHead 
-                        className="min-w-[100px] cursor-pointer hover:bg-slate-800/50"
-                        onClick={() => handleSort('duration')}
-                      >
-                        <div className="flex items-center gap-1">
-                          Duration
-                          {getSortIcon('duration')}
-                        </div>
-                      </TableHead>
-                    )}
+                    <TableHead 
+                      className="min-w-[100px] cursor-pointer hover:bg-slate-800/50"
+                      onClick={() => handleSort('duration')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Duration
+                        {getSortIcon('duration')}
+                      </div>
+                    </TableHead>
 
                     <TableHead className="min-w-[100px]">Audio Details</TableHead>
                   </TableRow>
@@ -369,13 +403,11 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
                           {formatTimestamp(conversation.timestamp)}
                         </div>
                       </TableCell>
-                      {allDurationsLoaded && (
-                        <TableCell className="min-w-[100px]">
-                          <div className="text-sm text-muted-foreground">
-                            {formatDuration(audioDurations[conversation.id] || conversation.metadata?.duration)}
-                          </div>
-                        </TableCell>
-                      )}
+                      <TableCell className="min-w-[100px]">
+                        <div className="text-sm text-muted-foreground">
+                          {formatDuration(audioDurations[conversation.id] || conversation.metadata?.duration)}
+                        </div>
+                      </TableCell>
 
                       <TableCell className="min-w-[100px]">
                         <Button 

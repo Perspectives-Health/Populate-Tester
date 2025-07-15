@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ConversationsPanel } from "@/components/conversations-panel"
 import { PromptTesterPanel } from "@/components/prompt-tester-panel"
 import { TestResultsPanel } from "@/components/test-results-panel"
@@ -54,6 +54,49 @@ export function SimpleDashboard() {
   const [testResults, setTestResults] = useState<TestResult[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
+  // Load state from localStorage on mount
+  useEffect(() => {
+    try {
+      // Load selected conversation
+      const savedConversation = localStorage.getItem("simple_dashboard_selectedConversation")
+      if (savedConversation) {
+        try {
+          const conversation = JSON.parse(savedConversation)
+          setSelectedConversation(conversation)
+        } catch (error) {
+          console.error('Error parsing saved conversation:', error)
+        }
+      }
+      
+      // Load test results
+      const savedTestResults = localStorage.getItem("simple_dashboard_testResults")
+      if (savedTestResults) {
+        try {
+          const results = JSON.parse(savedTestResults)
+          setTestResults(results)
+        } catch (error) {
+          console.error('Error parsing saved test results:', error)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading simple dashboard state:', error)
+    }
+  }, [])
+
+  // Save selected conversation to localStorage whenever it changes
+  useEffect(() => {
+    if (selectedConversation) {
+      localStorage.setItem("simple_dashboard_selectedConversation", JSON.stringify(selectedConversation))
+    } else {
+      localStorage.removeItem("simple_dashboard_selectedConversation")
+    }
+  }, [selectedConversation])
+
+  // Save test results to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem("simple_dashboard_testResults", JSON.stringify(testResults))
+  }, [testResults])
+
   const handleSetTestResult = (result: any) => {
     // Only add non-empty results
     if (!isEmptyResult(result)) {
@@ -88,6 +131,7 @@ export function SimpleDashboard() {
             isLoading={isLoading}
             setTestResult={handleSetTestResult}
             setTestScreenshot={() => {}}
+            onAddToQueue={async () => {}}
           />
         </div>
 

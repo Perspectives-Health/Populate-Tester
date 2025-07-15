@@ -36,25 +36,36 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
 
   // Load test jobs from localStorage on mount
   useEffect(() => {
+    console.log('TestQueuePanel: Loading test jobs from localStorage')
     const saved = localStorage.getItem("testJobs")
+    console.log('TestQueuePanel: Saved test jobs from localStorage:', saved)
     if (saved) {
       try {
         const jobs = JSON.parse(saved)
-        setTestJobs(jobs)
-        // Start polling for pending jobs
-        jobs.forEach((job: TestJob) => {
-          if (job.status === 'pending') {
-            setPollingJobs(prev => new Set(prev).add(job.id))
-          }
-        })
+        console.log('TestQueuePanel: Parsed test jobs:', jobs)
+        if (Array.isArray(jobs) && jobs.length > 0) {
+          console.log('TestQueuePanel: Setting test jobs with', jobs.length, 'jobs')
+          setTestJobs(jobs)
+          // Start polling for pending jobs
+          jobs.forEach((job: TestJob) => {
+            if (job.status === 'pending') {
+              setPollingJobs(prev => new Set(prev).add(job.id))
+            }
+          })
+        } else {
+          console.log('TestQueuePanel: Jobs array is empty or invalid')
+        }
       } catch (error) {
         console.error('Error loading test jobs:', error)
       }
+    } else {
+      console.log('TestQueuePanel: No saved test jobs found in localStorage')
     }
   }, [])
 
   // Save test jobs to localStorage whenever they change
   useEffect(() => {
+    console.log('TestQueuePanel: Saving test jobs to localStorage:', testJobs)
     localStorage.setItem("testJobs", JSON.stringify(testJobs))
   }, [testJobs])
 
@@ -165,6 +176,7 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
         console.log('Previous jobs:', prev)
         const updated = [newJob, ...prev]
         console.log('Updated jobs:', updated)
+        console.log('TestQueuePanel: About to update testJobs state, this should trigger localStorage save')
         return updated
       })
       
@@ -177,6 +189,14 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
   useImperativeHandle(ref, () => ({
     addToQueue: handleAddToQueue
   }), [])
+
+  // Debug: Check if component is being unmounted
+  useEffect(() => {
+    console.log('TestQueuePanel: Component mounted')
+    return () => {
+      console.log('TestQueuePanel: Component unmounting - this might be causing the issue')
+    }
+  }, [])
 
 
 
@@ -192,6 +212,7 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
   }
 
   const clearQueue = () => {
+    console.log('TestQueuePanel: Clearing queue - this should only happen when user clicks Clear Queue button')
     setTestJobs([])
     setPollingJobs(new Set())
     localStorage.removeItem("testJobs")

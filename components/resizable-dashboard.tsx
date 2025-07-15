@@ -8,10 +8,11 @@ import type { Conversation } from "@/lib/api"
 import { startTestPromptJob } from "@/lib/api"
 
 export function ResizableDashboard() {
-  // Single-select logic
+  // Single-select logic with localStorage persistence
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  // Panel width states (as percentages)
+  
+  // Panel width states (as percentages) with localStorage persistence
   const [leftPanelWidth, setLeftPanelWidth] = useState(40)
   const [middlePanelWidth, setMiddlePanelWidth] = useState(30)
   const [rightPanelWidth, setRightPanelWidth] = useState(30)
@@ -19,6 +20,51 @@ export function ResizableDashboard() {
 
   // Ref to the queue panel
   const queuePanelRef = useRef<{ addToQueue: (jobData: any) => Promise<void> } | null>(null)
+
+  // Load dashboard state from localStorage on mount
+  useEffect(() => {
+    try {
+      // Load panel widths
+      const savedLeftWidth = localStorage.getItem("dashboard_leftPanelWidth")
+      const savedMiddleWidth = localStorage.getItem("dashboard_middlePanelWidth")
+      const savedRightWidth = localStorage.getItem("dashboard_rightPanelWidth")
+      
+      if (savedLeftWidth && savedMiddleWidth && savedRightWidth) {
+        setLeftPanelWidth(parseFloat(savedLeftWidth))
+        setMiddlePanelWidth(parseFloat(savedMiddleWidth))
+        setRightPanelWidth(parseFloat(savedRightWidth))
+      }
+      
+      // Load selected conversation
+      const savedConversation = localStorage.getItem("dashboard_selectedConversation")
+      if (savedConversation) {
+        try {
+          const conversation = JSON.parse(savedConversation)
+          setSelectedConversation(conversation)
+        } catch (error) {
+          console.error('Error parsing saved conversation:', error)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading dashboard state:', error)
+    }
+  }, [])
+
+  // Save panel widths to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem("dashboard_leftPanelWidth", leftPanelWidth.toString())
+    localStorage.setItem("dashboard_middlePanelWidth", middlePanelWidth.toString())
+    localStorage.setItem("dashboard_rightPanelWidth", rightPanelWidth.toString())
+  }, [leftPanelWidth, middlePanelWidth, rightPanelWidth])
+
+  // Save selected conversation to localStorage whenever it changes
+  useEffect(() => {
+    if (selectedConversation) {
+      localStorage.setItem("dashboard_selectedConversation", JSON.stringify(selectedConversation))
+    } else {
+      localStorage.removeItem("dashboard_selectedConversation")
+    }
+  }, [selectedConversation])
 
   // Handle adding test to queue
   const handleAddToQueue = async (jobData: any) => {

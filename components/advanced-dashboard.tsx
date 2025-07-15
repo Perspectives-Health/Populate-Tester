@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ConversationsDataTable } from "@/components/conversations-data-table"
 import { PromptTesterPanel } from "@/components/prompt-tester-panel"
 import { AdvancedResultsPanel } from "@/components/advanced-results-panel"
@@ -21,7 +21,44 @@ export function AdvancedDashboard() {
   const [testResults, setTestResults] = useState<TestResult[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
+  // Load state from localStorage on mount
+  useEffect(() => {
+    try {
+      // Load selected conversations
+      const savedConversations = localStorage.getItem("advanced_dashboard_selectedConversations")
+      if (savedConversations) {
+        try {
+          const conversations = JSON.parse(savedConversations)
+          setSelectedConversations(conversations)
+        } catch (error) {
+          console.error('Error parsing saved conversations:', error)
+        }
+      }
+      
+      // Load test results
+      const savedTestResults = localStorage.getItem("advanced_dashboard_testResults")
+      if (savedTestResults) {
+        try {
+          const results = JSON.parse(savedTestResults)
+          setTestResults(results)
+        } catch (error) {
+          console.error('Error parsing saved test results:', error)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading advanced dashboard state:', error)
+    }
+  }, [])
 
+  // Save selected conversations to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem("advanced_dashboard_selectedConversations", JSON.stringify(selectedConversations))
+  }, [selectedConversations])
+
+  // Save test results to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem("advanced_dashboard_testResults", JSON.stringify(testResults))
+  }, [testResults])
 
   return (
     <div className="h-screen flex flex-col bg-slate-950">
@@ -47,6 +84,7 @@ export function AdvancedDashboard() {
             isLoading={isLoading}
             setTestResult={(result) => setTestResults((prev) => [result, ...prev])}
             setTestScreenshot={() => {}}
+            onAddToQueue={async () => {}}
           />
         </div>
 
