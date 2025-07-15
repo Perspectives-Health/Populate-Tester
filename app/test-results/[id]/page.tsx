@@ -222,6 +222,16 @@ export default function TestResultsPage() {
                                         {key}
                                       </span>
                                       <div className="flex-1 space-y-2">
+                                        {/* Question Text */}
+                                        {value.question_text && (
+                                          <div>
+                                            <span className="text-purple-400 text-xs font-medium">Question:</span>
+                                            <div className="text-slate-200 text-sm mt-1">
+                                              {value.question_text}
+                                            </div>
+                                          </div>
+                                        )}
+                                        {/* Answer */}
                                         {value.answer !== undefined && (
                                           <div>
                                             <span className="text-blue-400 text-xs font-medium">Answer:</span>
@@ -230,6 +240,7 @@ export default function TestResultsPage() {
                                             </div>
                                           </div>
                                         )}
+                                        {/* Evidence */}
                                         {value.evidence && (
                                           <div>
                                             <span className="text-green-400 text-xs font-medium">Evidence:</span>
@@ -238,10 +249,35 @@ export default function TestResultsPage() {
                                             </div>
                                           </div>
                                         )}
+                                        {/* Type */}
+                                        {value.type && (
+                                          <div>
+                                            <span className="text-orange-400 text-xs font-medium">Type:</span>
+                                            <div className="text-slate-300 text-sm mt-1">
+                                              {value.type}
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                   </div>
                                 ))}
+                                
+                                {/* Log Messages Section */}
+                                {testResult.result?.log_messages && testResult.result.log_messages.length > 0 && (
+                                  <div className="border border-slate-600 rounded p-3 bg-slate-700 mt-4">
+                                    <div className="mb-2">
+                                      <span className="text-cyan-400 text-xs font-medium">Log Messages:</span>
+                                    </div>
+                                    <div className="space-y-1">
+                                      {testResult.result.log_messages.map((message: string, index: number) => (
+                                        <div key={index} className="text-slate-300 text-sm">
+                                          {message}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             )
                           }

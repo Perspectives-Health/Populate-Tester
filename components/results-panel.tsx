@@ -86,6 +86,22 @@ export function ResultsPanel({ testResult, testScreenshot, selectedConversation 
                 {parsedResult ? JSON.stringify(parsedResult, null, 2) : '{}'}
               </SyntaxHighlighter>
             </div>
+            
+            {/* Log Messages Section */}
+            {parsedResult?.log_messages && parsedResult.log_messages.length > 0 && (
+              <div className="mt-4">
+                <div className="mb-2 font-medium text-slate-300">Log Messages</div>
+                <div className="bg-slate-900 rounded-lg border border-slate-700 p-4 max-h-[30vh] overflow-auto custom-scrollbar">
+                  <div className="space-y-2">
+                    {parsedResult.log_messages.map((message: string, index: number) => (
+                      <div key={index} className="text-slate-300 text-sm border-l-2 border-cyan-500 pl-3">
+                        {message}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           {testScreenshot && (
             <div className="flex-1 min-w-[200px]">
