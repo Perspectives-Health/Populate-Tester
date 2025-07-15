@@ -21,11 +21,6 @@ export const ScreenshotPanel: React.FC<ScreenshotPanelProps> = ({ screenshotUrl 
   }
   return (
     <div className="h-full w-full flex flex-col min-w-0 min-h-0">
-      <div className="p-4 border-b border-slate-800 neon-accent flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="heading-3-neon">Screenshot</span>
-        </div>
-      </div>
       <TransformWrapper
         minScale={MIN_SCALE}
         maxScale={MAX_SCALE}
@@ -41,28 +36,33 @@ export const ScreenshotPanel: React.FC<ScreenshotPanelProps> = ({ screenshotUrl 
           const scale = (rest as any).state?.scale ?? 1;
           return (
             <>
-              <div className="flex gap-2 items-center justify-center py-2 z-10 bg-slate-900 sticky top-0">
-                <button
-                  className="rounded bg-slate-800 hover:bg-slate-700 p-2 text-slate-200"
-                  onClick={() => { zoomOut(ZOOM_STEP); }}
-                  title="Zoom Out"
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <button
-                  className="rounded bg-slate-800 hover:bg-slate-700 p-2 text-slate-200"
-                  onClick={() => { zoomIn(ZOOM_STEP); }}
-                  title="Zoom In"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-                <button
-                  className="rounded bg-slate-800 hover:bg-slate-700 p-2 text-slate-200"
-                  onClick={() => {resetTransform(); }}
-                  title="Fit to Screen"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
+              <div className="p-4 border-b border-slate-800 neon-accent flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="heading-3-neon">Screenshot</span>
+                </div>
+                <div className="flex gap-2 items-center">
+                  <button
+                    className="rounded bg-slate-800 hover:bg-slate-700 p-2 text-slate-200"
+                    onClick={() => { zoomOut(ZOOM_STEP); }}
+                    title="Zoom Out"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <button
+                    className="rounded bg-slate-800 hover:bg-slate-700 p-2 text-slate-200"
+                    onClick={() => { zoomIn(ZOOM_STEP); }}
+                    title="Zoom In"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                  <button
+                    className="rounded bg-slate-800 hover:bg-slate-700 p-2 text-slate-200"
+                    onClick={() => {resetTransform(); }}
+                    title="Fit to Screen"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
               <div className="flex-1 bg-slate-900 rounded-b-lg border border-slate-700 border-t-0 overflow-auto custom-scrollbar flex flex-col min-w-0 min-h-0">
                 <TransformComponent>

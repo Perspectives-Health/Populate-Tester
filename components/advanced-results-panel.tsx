@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Clock, Copy, Code, Image as ImageIcon } from "lucide-react"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import { useState } from "react"
+import React from "react"
 
 interface AdvancedResultsPanelProps {
   results: any[]
@@ -51,6 +53,8 @@ const isEmptyResult = (result: any): boolean => {
 }
 
 export function AdvancedResultsPanel({ results, selectedConversation, onClear, isPending }: AdvancedResultsPanelProps) {
+  const [currentIndex, setCurrentIndex] = useState(0)
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
   }
@@ -63,15 +67,60 @@ export function AdvancedResultsPanel({ results, selectedConversation, onClear, i
     }
   }
 
+  // Pretty-print JSON or add line breaks for readability
+  const formatResultText = (text: any) => {
+    if (!text) return ""
+    try {
+      if (typeof text === "string") {
+        // Try to parse as JSON, else just add line breaks
+        const parsed = JSON.parse(text)
+        return parsed
+      }
+      return text
+    } catch {
+      // Fallback: add line breaks every 80 chars
+      return text.replace(/(.{80})/g, "$1\n")
+    }
+  }
+
+  // Parse and format the numbered JSON structure
+  const formatNumberedResults = (data: any) => {
+    if (!data || typeof data !== 'object') return null
+    
+    // If the data has a "text" field that contains JSON, parse it
+    if (data.text && typeof data.text === 'string') {
+      try {
+        // Remove markdown code block if present
+        let cleaned = data.text.trim()
+        if (cleaned.startsWith('```json')) {
+          cleaned = cleaned.replace(/^```json/, '').replace(/```$/, '').trim()
+        }
+        const parsed = JSON.parse(cleaned)
+        return parsed
+      } catch {
+        return data
+      }
+    }
+    
+    return data
+  }
+
   // Filter out empty results
   const filteredResults = results.filter(result => !isEmptyResult(result))
+
+  const handlePrev = () => setCurrentIndex((i) => Math.max(i - 1, 0))
+  const handleNext = () => setCurrentIndex((i) => Math.min(i + 1, filteredResults.length - 1))
+
+  // Reset index if results change
+  React.useEffect(() => {
+    setCurrentIndex(0)
+  }, [filteredResults.length])
 
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 border-b border-slate-800 neon-accent">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Code className="h-5 w-5 text-emerald-400" />
             <h2 className="heading-2-neon">Test Results</h2>
           </div>
           <div className="flex items-center gap-2">
@@ -83,7 +132,8 @@ export function AdvancedResultsPanel({ results, selectedConversation, onClear, i
           </div>
         </div>
       </div>
-      <div className="h-full overflow-auto custom-scrollbar">
+      
+      <ScrollArea className="flex-1">
         {filteredResults.length === 0 ? (
           <div className="flex items-center justify-center h-full text-slate-400 p-6">
             <div className="text-center">
@@ -93,12 +143,18 @@ export function AdvancedResultsPanel({ results, selectedConversation, onClear, i
             </div>
           </div>
         ) : (
-          <div className="p-4 space-y-4 max-w-2xl mx-auto">
-            {filteredResults.map((result, index) => {
+          <div className="p-4 flex flex-col items-center justify-center h-full">
+            <div className="flex items-center gap-4 mb-4">
+              <Button onClick={handlePrev} disabled={currentIndex === 0} variant="outline" size="sm">Previous</Button>
+              <span className="text-sm text-muted-foreground">Test #{filteredResults.length - currentIndex}</span>
+              <Button onClick={handleNext} disabled={currentIndex === filteredResults.length - 1} variant="outline" size="sm">Next</Button>
+            </div>
+            {(() => {
+              const result = filteredResults[currentIndex]
               // Defensive: allow for new result shape and nulls
-              let key = "result-" + index;
+              let key = "result-" + currentIndex;
               if (result && (result.timestamp || result.time || result.created_at)) {
-                key = String(result.timestamp || result.time || result.created_at) + index;
+                key = String(result.timestamp || result.time || result.created_at) + currentIndex;
               }
               let json = result?.result || result?.text || result || {};
               const screenshot = result?.screenshot_url || result?.screenshot || null;
@@ -122,61 +178,81 @@ export function AdvancedResultsPanel({ results, selectedConversation, onClear, i
                   }
                 }
               }
+
               return (
-                <Card key={key} className="neon-accent border-l-4 border-l-emerald-400 h-fit w-full">
+                <Card className="w-full max-w-3xl border-l-4 border-l-blue-500">
                   <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between min-w-0">
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Badge variant="outline" className="text-xs neon-border">
-                            Test #{filteredResults.length - index}
-                          </Badge>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">Test #{filteredResults.length - currentIndex}</Badge>
                         </div>
-                        <p className="text-xs text-slate-400">
-                          {result && result.timestamp ? new Date(result.timestamp).toLocaleTimeString() : ""}
-                        </p>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard(formatJSON(json))}
-                        className="text-cyan-400 hover:text-cyan-300"
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copyToClipboard(formatJSON(prettyJson))}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="pt-0 min-w-0">
-                    <div className="flex flex-wrap gap-4 min-w-0">
-                      <div className="flex-1 w-full min-w-0">
-                        <div className="bg-slate-900 rounded-lg border border-slate-700 p-4 overflow-x-auto w-full custom-scrollbar" style={{ boxSizing: 'border-box' }}>
-                          <SyntaxHighlighter
-                            language="json"
-                            style={vscDarkPlus}
-                            customStyle={{ 
-                              background: 'transparent', 
-                              fontSize: 13, 
-                              margin: 0, 
-                              padding: 0, 
-                              boxSizing: 'border-box', 
-                              whiteSpace: 'pre', 
-                              wordBreak: 'normal',
-                              minWidth: 0,
-                              maxWidth: '100%'
-                            }}
-                          >
-                            {typeof prettyJson === 'string' ? prettyJson : JSON.stringify(prettyJson, null, 2)}
-                          </SyntaxHighlighter>
-                        </div>
-                      </div>
+                  <CardContent className="pt-0 space-y-3">
+                    <div className="p-4 rounded-lg border border-slate-700 mt-2 overflow-x-auto custom-scrollbar bg-slate-800">
+                      {(() => {
+                        const formattedData = formatNumberedResults(prettyJson)
+                        
+                        if (formattedData && typeof formattedData === 'object') {
+                          return (
+                            <div className="space-y-2">
+                              {Object.entries(formattedData).map(([key, value]: [string, any]) => (
+                                <div key={key} className="border border-slate-600 rounded p-3 bg-slate-700">
+                                  <div className="flex items-start gap-3">
+                                    <span className="text-yellow-400 font-bold text-sm min-w-[30px]">
+                                      {key}
+                                    </span>
+                                    <div className="flex-1 space-y-2">
+                                      {value.answer !== undefined && (
+                                        <div>
+                                          <span className="text-blue-400 text-xs font-medium">Answer:</span>
+                                          <div className="text-yellow-300 text-sm mt-1">
+                                            {value.answer === null ? 'null' : value.answer === '' ? '(empty)' : value.answer}
+                                          </div>
+                                        </div>
+                                      )}
+                                      {value.evidence && (
+                                        <div>
+                                          <span className="text-green-400 text-xs font-medium">Evidence:</span>
+                                          <div className="text-yellow-300 text-sm mt-1">
+                                            {value.evidence}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        }
+                        
+                        // Fallback to original formatting
+                        return (
+                          <pre className="whitespace-pre-wrap break-words text-xs text-yellow-300">
+                            {formatResultText(prettyJson)}
+                          </pre>
+                        )
+                      })()}
                     </div>
                   </CardContent>
                 </Card>
               )
-            })}
+            })()}
           </div>
         )}
-      </div>
+      </ScrollArea>
       <style jsx global>{`
         pre[class*='language-'] {
           padding-left: 16px !important;
