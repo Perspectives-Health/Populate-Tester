@@ -223,6 +223,15 @@ export function AdvancedResultsPanel({ results, selectedConversation, onClear, i
                                           </div>
                                         </div>
                                       )}
+                                      {/* Processed Question Text */}
+                                      {value.processed_question_text && (
+                                        <div>
+                                          <span className="text-indigo-400 text-xs font-medium">Processed Question:</span>
+                                          <div className="text-slate-200 text-sm mt-1 italic">
+                                            {value.processed_question_text}
+                                          </div>
+                                        </div>
+                                      )}
                                       {/* Answer */}
                                       {value.answer !== undefined && (
                                         <div>
@@ -256,20 +265,21 @@ export function AdvancedResultsPanel({ results, selectedConversation, onClear, i
                               ))}
                               
                               {/* Log Messages Section */}
-                              {prettyJson?.log_messages && prettyJson.log_messages.length > 0 && (
+                              {(prettyJson?.log_messages && prettyJson.log_messages.length > 0) || 
+                               (result?.log_messages && result.log_messages.length > 0) ? (
                                 <div className="border border-slate-600 rounded p-3 bg-slate-700 mt-4">
                                   <div className="mb-2">
                                     <span className="text-cyan-400 text-xs font-medium">Log Messages:</span>
                                   </div>
                                   <div className="space-y-1">
-                                    {prettyJson.log_messages.map((message: string, index: number) => (
+                                    {(prettyJson?.log_messages || result?.log_messages || []).map((message: string, index: number) => (
                                       <div key={index} className="text-slate-300 text-sm">
                                         {message}
                                       </div>
                                     ))}
                                   </div>
                                 </div>
-                              )}
+                              ) : null}
                             </div>
                           )
                         }

@@ -19,6 +19,7 @@ interface TestJob {
   status: 'pending' | 'done' | 'error'
   timestamp: string
   result?: any
+  log_messages?: string[]
   screenshot_url?: string
   error?: string
   screenshot_s3_link?: string
@@ -142,7 +143,14 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
               if (result.status === 'done' || result.status === 'error') {
                 setTestJobs(prev => prev.map(j => 
                   j.id === job_id 
-                    ? { ...j, status: result.status, result: result.result, screenshot_url: result.screenshot_url, error: result.error }
+                    ? { 
+                        ...j, 
+                        status: result.status, 
+                        result: result.result, 
+                        log_messages: result.log_messages,
+                        screenshot_url: result.screenshot_url, 
+                        error: result.error 
+                      }
                     : j
                 ))
                 break

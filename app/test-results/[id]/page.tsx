@@ -17,6 +17,7 @@ interface TestResult {
   id: string
   status: 'pending' | 'done' | 'error'
   result?: any
+  log_messages?: string[]
   screenshot_url?: string
   error?: string
   timestamp?: string
@@ -231,6 +232,15 @@ export default function TestResultsPage() {
                                             </div>
                                           </div>
                                         )}
+                                        {/* Processed Question Text */}
+                                        {value.processed_question_text && (
+                                          <div>
+                                            <span className="text-indigo-400 text-xs font-medium">Processed Question:</span>
+                                            <div className="text-slate-200 text-sm mt-1 italic">
+                                              {value.processed_question_text}
+                                            </div>
+                                          </div>
+                                        )}
                                         {/* Answer */}
                                         {value.answer !== undefined && (
                                           <div>
@@ -264,20 +274,21 @@ export default function TestResultsPage() {
                                 ))}
                                 
                                 {/* Log Messages Section */}
-                                {testResult.result?.log_messages && testResult.result.log_messages.length > 0 && (
+                                {(testResult.result?.log_messages && testResult.result.log_messages.length > 0) || 
+                                 (testResult.log_messages && testResult.log_messages.length > 0) ? (
                                   <div className="border border-slate-600 rounded p-3 bg-slate-700 mt-4">
                                     <div className="mb-2">
                                       <span className="text-cyan-400 text-xs font-medium">Log Messages:</span>
                                     </div>
                                     <div className="space-y-1">
-                                      {testResult.result.log_messages.map((message: string, index: number) => (
+                                      {(testResult.result?.log_messages || testResult.log_messages || []).map((message: string, index: number) => (
                                         <div key={index} className="text-slate-300 text-sm">
                                           {message}
                                         </div>
                                       ))}
                                     </div>
                                   </div>
-                                )}
+                                ) : null}
                               </div>
                             )
                           }
