@@ -98,7 +98,7 @@ export function ResizableDashboard() {
     <div className="h-screen flex flex-col bg-slate-950">
       {/* Header */}
       <header className="border-b border-slate-800 px-6 py-4 neon-accent">
-        <h1 className="text-2xl font-bold neon-text">LLM Testing Dashboard</h1>
+        <h1 className="heading-1-neon">LLM Testing Dashboard</h1>
         <p className="text-slate-400">Advanced prompt testing with production conversations</p>
       </header>
       {/* Resizable Four Panel Layout */}

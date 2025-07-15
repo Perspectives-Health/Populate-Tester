@@ -13,9 +13,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { apiService, Conversation } from "@/lib/api"
+import { apiService, Conversation, setConversationsApiBaseUrl } from "@/lib/api"
 import { formatDistanceToNow } from "date-fns"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: Conversation | null) => void }) {
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -23,12 +24,21 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [env, setEnv] = useState<"production" | "testing">(
+    process.env.NODE_ENV === "development" ? "testing" : "production"
+  )
   // Add a type for the audio dialog state that includes s3_link and extracted_info as optional fields
   const [audioDialog, setAudioDialog] = useState<{ open: boolean; conversation: (Conversation & { s3_link?: string; extracted_info?: string }) | null }>({ open: false, conversation: null });
 
+  // URLs from env
+  const prodUrl = process.env.NEXT_PUBLIC_PROD_API_BASE_URL || "http://localhost:5001"
+  const testUrl = process.env.NEXT_PUBLIC_TEST_API_BASE_URL || "http://localhost:5001"
+
   useEffect(() => {
+    setConversationsApiBaseUrl(env === "production" ? prodUrl : testUrl)
     loadConversations()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [env])
 
   const loadConversations = async () => {
     try {
@@ -123,10 +133,21 @@ export function ConversationsDataTable({ onSelect }: { onSelect: (conversation: 
     <Card className="h-full flex flex-col">
       <CardHeader className="flex-shrink-0">
         <div className="flex items-center justify-between">
-          <CardTitle>Conversations ({conversations.length})</CardTitle>
-          <Button onClick={loadConversations} variant="outline" size="sm">
-            Refresh
-          </Button>
+          <CardTitle className="heading-2-neon">Conversations ({conversations.length})</CardTitle>
+          <div className="flex items-center gap-2">
+            <Select value={env} onValueChange={(val) => setEnv(val as "production" | "testing")}> 
+              <SelectTrigger className="w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="production">Production</SelectItem>
+                <SelectItem value="testing">Testing</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={loadConversations} variant="outline" size="sm">
+              Refresh
+            </Button>
+          </div>
         </div>
         {/**
         <div className="flex items-center space-x-2">

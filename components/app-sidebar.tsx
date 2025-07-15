@@ -64,7 +64,7 @@ export function AppSidebar() {
             <TestTube className="h-4 w-4" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-semibold">LLM Tester</span>
+            <span className="heading-4">LLM Tester</span>
             <span className="text-xs text-muted-foreground">Chrome Extension</span>
           </div>
         </div>

@@ -67,7 +67,7 @@ export function SimpleDashboard() {
     <div className="h-screen flex flex-col">
       {/* Header */}
       <header className="border-b px-6 py-4">
-        <h1 className="text-2xl font-bold">LLM Testing Dashboard</h1>
+        <h1 className="heading-1">LLM Testing Dashboard</h1>
         <p className="text-muted-foreground">Test prompts against production conversations</p>
       </header>
 

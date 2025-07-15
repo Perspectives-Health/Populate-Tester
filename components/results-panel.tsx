@@ -63,8 +63,11 @@ export function ResultsPanel({ testResult, testScreenshot, selectedConversation 
 
   return (
     <div className="flex flex-col h-full p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-emerald-400">Test Results</h2>
+      <div className="p-4 border-b">
+        <div className="flex items-center justify-between">
+          <h2 className="heading-2-accent">Test Results</h2>
+          <Badge variant="secondary">{testResult ? 1 : 0}</Badge>
+        </div>
       </div>
       {(!testResult && !testScreenshot) ? (
         <div className="flex flex-1 items-center justify-center text-muted-foreground">

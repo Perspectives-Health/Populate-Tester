@@ -241,7 +241,7 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
       <div className="flex-1 flex flex-col px-8 pt-8 gap-4">
         <div className="flex-1 flex flex-col">
           <div className="flex items-center mb-1">
-            <label className="text-sm font-medium text-slate-300 mr-2">Prompt Instructions</label>
+            <label className="heading-3-neon mr-2">Prompt Instructions</label>
             <TooltipProvider delayDuration={100}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -274,7 +274,7 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
           />
         </div>
         <div className="flex-1 flex flex-col">
-          <label className="text-sm font-medium text-slate-300 mb-1">Prompt Data (Mapping + Transcript)</label>
+          <label className="heading-3-neon mb-1">Prompt Data (Mapping + Transcript)</label>
           <Textarea
             placeholder={loadingPrompt ? "Loading data..." : "Select a conversation to see the data"}
             value={data}

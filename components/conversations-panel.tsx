@@ -9,7 +9,9 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowUpDown, Search, Filter, X } from "lucide-react"
-import { conversationsApi, type Conversation, ApiError } from "@/lib/api"
+import { apiService } from "@/lib/api"
+import type { Conversation } from "@/lib/api"
+import { setConversationsApiBaseUrl } from "@/lib/api"
 
 interface ConversationsPanelProps {
   onSelectionChange: (conversations: Conversation[]) => void
@@ -23,40 +25,49 @@ export function ConversationsPanel({ onSelectionChange, selectedConversations }:
   const [workflowFilter, setWorkflowFilter] = useState<string>("all")
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [env, setEnv] = useState<"production" | "testing">(
+    process.env.NODE_ENV === "development" ? "testing" : "production"
+  )
+
+  // URLs from env
+  const prodUrl = process.env.NEXT_PUBLIC_PROD_API_BASE_URL || "http://localhost:5001"
+  const testUrl = process.env.NEXT_PUBLIC_TEST_API_BASE_URL || "http://localhost:5001"
 
   // Fetch conversations from API
-  useEffect(() => {
-    const fetchConversations = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-        const data = await conversationsApi.getAll()
-        setConversations(data)
-        setFilteredConversations(data)
-      } catch (err) {
-        const errorMessage = err instanceof ApiError 
-          ? `API Error (${err.status}): ${err.message}`
-          : err instanceof Error 
-            ? err.message 
-            : "Failed to fetch conversations"
-        setError(errorMessage)
-        console.error("Error fetching conversations:", err)
-      } finally {
-        setIsLoading(false)
+  const fetchConversations = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      const data = await apiService.getConversations()
+      setConversations(data)
+      setFilteredConversations(data)
+    } catch (err) {
+      let errorMessage = "Failed to fetch conversations"
+      if (err instanceof Error) {
+        errorMessage = err.message
       }
+      setError(errorMessage)
+      console.error("Error fetching conversations:", err)
+    } finally {
+      setIsLoading(false)
     }
+  }
 
+  useEffect(() => {
+    // Set the API base URL for conversations
+    setConversationsApiBaseUrl(env === "production" ? prodUrl : testUrl)
     fetchConversations()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [env])
 
   // Filter conversations based on search and workflow
   useEffect(() => {
     const filtered = conversations.filter((conv) => {
       const matchesSearch =
-        conv.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        conv.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        conv.workflow.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        conv.id.toLowerCase().includes(searchTerm.toLowerCase())
+        (conv.name?.toLowerCase() ?? "").includes(searchTerm.toLowerCase()) ||
+        (conv.email?.toLowerCase() ?? "").includes(searchTerm.toLowerCase()) ||
+        (conv.workflow?.toLowerCase() ?? "").includes(searchTerm.toLowerCase()) ||
+        (conv.id?.toLowerCase() ?? "").includes(searchTerm.toLowerCase())
 
       const matchesWorkflow = workflowFilter === "all" || conv.workflow === workflowFilter
 
@@ -66,7 +77,7 @@ export function ConversationsPanel({ onSelectionChange, selectedConversations }:
     setFilteredConversations(filtered)
   }, [conversations, searchTerm, workflowFilter])
 
-  const workflows = [...new Set(conversations.map((c) => c.workflow))]
+  const workflows = [...new Set(conversations.map((c) => c.workflow ?? ""))]
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -130,7 +141,18 @@ export function ConversationsPanel({ onSelectionChange, selectedConversations }:
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 border-b">
-        <h2 className="font-semibold mb-3">Conversations</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="heading-2">Conversations</h2>
+          <Select value={env} onValueChange={(val) => setEnv(val as "production" | "testing")}> 
+            <SelectTrigger className="w-[120px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="production">Production</SelectItem>
+              <SelectItem value="testing">Testing</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div className="relative">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -158,7 +180,7 @@ export function ConversationsPanel({ onSelectionChange, selectedConversations }:
                     <span className="font-mono text-sm">{conversation.id}</span>
                     <Checkbox
                       checked={isSelected(conversation)}
-                      onCheckedChange={(checked) => handleSelectConversation(conversation, checked)}
+                      onCheckedChange={(checked) => handleSelectConversation(conversation, Boolean(checked))}
                     />
                   </div>
 
@@ -166,29 +188,29 @@ export function ConversationsPanel({ onSelectionChange, selectedConversations }:
 
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs">
-                      {formatDuration(conversation.metadata.duration)}
+                      {formatDuration(conversation.metadata?.duration ?? 0)}
                     </Badge>
                     <Badge
-                      variant={conversation.metadata.quality === "high" ? "default" : "secondary"}
+                      variant={conversation.metadata?.quality === "high" ? "default" : "secondary"}
                       className="text-xs"
                     >
-                      {conversation.metadata.quality}
+                      {conversation.metadata?.quality ?? "unknown"}
                     </Badge>
                   </div>
 
                   <div className="text-xs">
-                    <span className="text-muted-foreground">{conversation.formFields.length} fields:</span>
+                    <span className="text-muted-foreground">{conversation.formFields?.length ?? 0} fields:</span>
                     <div className="mt-1 space-y-1">
-                      {Object.entries(conversation.originalAnswers)
+                      {Object.entries(conversation.originalAnswers ?? {})
                         .slice(0, 2)
                         .map(([key, value]) => (
                           <div key={key} className="truncate">
                             <span className="font-medium">{key}:</span> {String(value)}
                           </div>
                         ))}
-                      {Object.keys(conversation.originalAnswers).length > 2 && (
+                      {Object.keys(conversation.originalAnswers ?? {}).length > 2 && (
                         <div className="text-muted-foreground">
-                          +{Object.keys(conversation.originalAnswers).length - 2} more...
+                          +{Object.keys(conversation.originalAnswers ?? {}).length - 2} more...
                         </div>
                       )}
                     </div>
