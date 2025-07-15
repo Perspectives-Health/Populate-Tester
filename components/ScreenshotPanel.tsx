@@ -30,7 +30,7 @@ export const ScreenshotPanel: React.FC<ScreenshotPanelProps> = ({ screenshotUrl 
         pinch={{ disabled: true }}
         panning={{ disabled: false }}
         zoomAnimation={{ size: 3 }}
-        limitToBounds={false}
+        limitToBounds={true}
       >
         {({ zoomIn, zoomOut, resetTransform, ...rest }) => {
           const scale = (rest as any).state?.scale ?? 1;
@@ -64,12 +64,12 @@ export const ScreenshotPanel: React.FC<ScreenshotPanelProps> = ({ screenshotUrl 
                   </button>
                 </div>
               </div>
-              <div className="flex-1 bg-slate-900 rounded-b-lg border border-slate-700 border-t-0 overflow-auto custom-scrollbar flex flex-col min-w-0 min-h-0">
+              <div className="flex-1 bg-slate-900 rounded-b-lg border border-slate-700 border-t-0 overflow-hidden flex flex-col min-w-0 min-h-0">
                 <TransformComponent>
                   <img
                     src={screenshotUrl}
                     alt="Mapping Screenshot"
-                    className="select-none pointer-events-auto"
+                    className="select-none pointer-events-auto max-w-full max-h-full"
                     draggable={false}
                     style={{
                       width: "100%",
