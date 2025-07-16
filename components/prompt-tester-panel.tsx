@@ -10,6 +10,7 @@ import { Play, Zap, Save, RefreshCw } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { apiService, Conversation } from "@/lib/api"
 import { startTestPromptJob, getTestPromptResult } from "@/lib/api"
+import { Switch } from "@/components/ui/switch"
 
 interface PromptTesterPanelProps {
   selectedConversation: Conversation | null
@@ -65,6 +66,7 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
   const [jobStatus, setJobStatus] = useState<'idle' | 'pending' | 'done' | 'error'>('idle')
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [includeScreenshot, setIncludeScreenshot] = useState(true)
 
   // Load custom prompt from localStorage on mount
   useEffect(() => {
@@ -105,6 +107,11 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
       setPromptInput(customPrompt)
     }
   }, [customPrompt])
+
+  // Reset toggle when conversation changes
+  useEffect(() => {
+    setIncludeScreenshot(true)
+  }, [selectedConversation])
 
   // Clean up polling on unmount or conversation change
   useEffect(() => {
@@ -148,7 +155,8 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
         center_name: selectedConversation.center_name,
         workflow_name: selectedConversation.workflow_name,
         prompt: promptInput,
-        screenshot_s3_link: selectedConversation.mapping_screenshot_s3_link
+        screenshot_s3_link: selectedConversation.mapping_screenshot_s3_link,
+        include_screenshot: !!selectedConversation.mapping_screenshot_s3_link && includeScreenshot
       })
       
       // Don't clear the prompt input - allow user to test the same prompt again
@@ -172,6 +180,20 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
         <div className="flex-1 flex flex-col">
           <div className="flex items-center mb-1">
             <label className="heading-3-neon mr-2">Prompt Instructions</label>
+            {/* Screenshot toggle, only if screenshot is available */}
+            {selectedConversation?.mapping_screenshot_s3_link && (
+              <div className="flex items-center ml-4">
+                <Switch
+                  id="include-screenshot-toggle"
+                  checked={includeScreenshot}
+                  onCheckedChange={setIncludeScreenshot}
+                  className="mr-2"
+                />
+                <label htmlFor="include-screenshot-toggle" className="text-xs text-slate-400 select-none">
+                  Include screenshot in LLM prompt
+                </label>
+              </div>
+            )}
             <TooltipProvider delayDuration={100}>
               <Tooltip>
                 <TooltipTrigger asChild>

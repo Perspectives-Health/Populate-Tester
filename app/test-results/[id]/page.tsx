@@ -21,6 +21,8 @@ interface TestResult {
   screenshot_url?: string
   error?: string
   timestamp?: string
+  llm_generation_time?: number
+  total_time?: number
 }
 
 export default function TestResultsPage() {
@@ -31,6 +33,10 @@ export default function TestResultsPage() {
   const [error, setError] = useState<string | null>(null)
 
   const testId = params.id as string
+
+  useEffect(() => {
+    console.log('testResult:', testResult)
+  }, [testResult])
 
   useEffect(() => {
     if (!testId) return
@@ -64,6 +70,7 @@ export default function TestResultsPage() {
 
   const formatResultText = (text: any) => {
     if (!text) return ""
+    console.log('formatResultText called with:', text)
     try {
       if (typeof text === "string") {
         const parsed = JSON.parse(text)
@@ -160,7 +167,14 @@ export default function TestResultsPage() {
           <div className="h-full flex flex-col">
             <div className="p-4 border-b border-slate-800 neon-accent">
               <div className="flex items-center justify-between">
-                <h2 className="heading-2-neon">Test Results</h2>
+                <div className="flex items-center gap-4">
+                  <h2 className="heading-2-neon">Test Results</h2>
+                  {testResult.llm_generation_time && (
+                    <Badge variant="outline" className="text-xs">
+                      LLM: {Math.floor(testResult.llm_generation_time / 60)}m {Math.floor(testResult.llm_generation_time % 60)}s
+                    </Badge>
+                  )}
+                </div>
                 <Button
                   variant="ghost"
                   size="sm"

@@ -42,6 +42,7 @@ export interface TestPromptRequest {
   workflow_id: string;
   prompt: string;
   screenshot_s3_link?: string;
+  include_screenshot?: boolean;
 }
 
 export interface TestPromptResponse {
@@ -159,6 +160,7 @@ export async function startTestPromptJob(payload: {
   workflow_id: string;
   prompt: string;
   screenshot_s3_link?: string;
+  include_screenshot?: boolean;
 }): Promise<{ job_id: string }> {
   const url = `${currentApiBaseUrl}/internal/test-prompt`;
   console.log('API: Sending test prompt request to backend:', payload)
