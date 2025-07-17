@@ -42,6 +42,9 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
         status: 'done' as const
       }))
       
+      // Get backend job IDs for comparison
+      const backendJobIds = new Set(completedBackendJobs.map(job => job.id))
+      
       // Then load from localStorage (pending jobs)
       const saved = localStorage.getItem("testJobs")
       let localStorageJobs: TestJob[] = []
@@ -57,12 +60,18 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
         }
       }
       
-      // Combine backend jobs (completed) with localStorage jobs (pending)
-      const allJobs = [...completedBackendJobs, ...localStorageJobs]
+      // Remove duplicates from localStorage (jobs that exist in backend)
+      const uniqueLocalStorageJobs = localStorageJobs.filter(job => !backendJobIds.has(job.id))
+      
+      // Update localStorage with only unique pending jobs
+      const pendingJobs = uniqueLocalStorageJobs.filter(job => job.status === 'pending')
+      localStorage.setItem("testJobs", JSON.stringify(pendingJobs))
+      
+      // Combine backend jobs (completed) with unique localStorage jobs (pending)
+      const allJobs = [...completedBackendJobs, ...uniqueLocalStorageJobs]
       setTestJobs(allJobs)
       
-      // Set pending jobs separately - only localStorage jobs can be pending
-      const pendingJobs = localStorageJobs.filter(job => job.status === 'pending')
+      // Set pending jobs separately - only unique localStorage jobs can be pending
       setPendingJobs(pendingJobs)
       
       // Only start polling for pending jobs that haven't been processed yet
@@ -127,6 +136,9 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
 
   // Save pending jobs to localStorage whenever they change
   useEffect(() => {
+    // Don't save during initial load when testJobs is empty
+    if (testJobs.length === 0) return
+    
     const pendingJobs = testJobs.filter(job => job.status === 'pending')
     localStorage.setItem("testJobs", JSON.stringify(pendingJobs))
     setPendingJobs(pendingJobs)
