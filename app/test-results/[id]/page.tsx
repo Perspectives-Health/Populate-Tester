@@ -202,8 +202,8 @@ export default function TestResultsPage() {
                   </div>
                 </div>
               ) : (
-                <div className="p-4">
-                  <Card className="w-full border-l-4 border-l-blue-500">
+                <div className="p-4 max-w-full">
+                  <Card className="w-full max-w-full border-l-4 border-l-blue-500">
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <div className="space-y-1">
@@ -223,34 +223,34 @@ export default function TestResultsPage() {
                       </div>
                     </CardHeader>
                     <CardContent className="pt-0 space-y-3">
-                      <div className="p-4 rounded-lg border border-slate-700 mt-2 overflow-x-auto custom-scrollbar bg-slate-800">
+                      <div className="rounded-lg border border-slate-700 mt-2 bg-slate-800 w-3/5">
                         {(() => {
                           const formattedData = formatNumberedResults(testResult.result)
                           
                           if (formattedData && typeof formattedData === 'object') {
                             return (
-                              <div className="space-y-2">
+                              <div className="space-y-2 p-4 max-w-full">
                                 {Object.entries(formattedData).map(([key, value]: [string, any]) => (
-                                  <div key={key} className="border border-slate-600 rounded p-3 bg-slate-700">
-                                    <div className="flex items-start gap-3">
-                                      <span className="text-yellow-400 font-bold text-sm min-w-[30px]">
+                                  <div key={key} className="border border-slate-600 rounded p-3 bg-slate-700 h-auto flex flex-col max-w-full">
+                                    <div className="flex items-start gap-3 min-w-0">
+                                      <span className="text-yellow-400 font-bold text-sm flex-shrink-0">
                                         {key}
                                       </span>
-                                      <div className="flex-1 space-y-2">
+                                      <div className="flex-1 space-y-2 min-w-0">
                                         {/* Question Text */}
                                         {value.question_text && (
-                                          <div>
-                                            <span className="text-purple-400 text-xs font-medium">Question:</span>
-                                            <div className="text-slate-200 text-sm mt-1">
+                                          <div className="break-words">
+                                            <span className="text-purple-400 text-xs font-medium block">Question:</span>
+                                            <div className="text-slate-200 text-sm mt-1 whitespace-normal break-words">
                                               {value.question_text}
                                             </div>
                                           </div>
                                         )}
                                         {/* Processed Question Text */}
                                         {value.processed_question_text && (
-                                          <div>
-                                            <span className="text-indigo-400 text-xs font-medium">Processed Question:</span>
-                                            <div className="text-slate-200 text-sm mt-1 italic">
+                                          <div className="break-words">
+                                            <span className="text-indigo-400 text-xs font-medium block">Processed Question:</span>
+                                            <div className="text-slate-200 text-sm mt-1 italic whitespace-normal break-words">
                                               {value.processed_question_text}
                                             </div>
                                           </div>
