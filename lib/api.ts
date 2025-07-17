@@ -190,7 +190,9 @@ export async function getTestPromptResult(job_id: string): Promise<any> {
     console.error('API: Test prompt result request failed:', res.status, errorText)
     throw new Error(`Failed to get test prompt result: ${res.status} ${errorText}`);
   }
-  return res.json();
+  const result = await res.json();
+  console.log('API: Test prompt result request successful:', result)
+  return result;
 }
 
 // Clear all test prompt results

@@ -147,7 +147,6 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
     
     try {
       setTestLoading(true)
-      
       // Add test to queue
       await onAddToQueue({
         conversation_id: selectedConversation.id,

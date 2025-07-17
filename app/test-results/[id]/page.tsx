@@ -170,8 +170,8 @@ export default function TestResultsPage() {
                 <div className="flex items-center gap-4">
                   <h2 className="heading-2-neon">Test Results</h2>
                   {testResult.llm_generation_time && (
-                    <Badge variant="outline" className="text-xs">
-                      LLM: {Math.floor(testResult.llm_generation_time / 60)}m {Math.floor(testResult.llm_generation_time % 60)}s
+                    <Badge className="text-xs heading-2-neon">
+                      LLM Latency: {Math.floor(testResult.llm_generation_time / 60)}m {Math.floor(testResult.llm_generation_time % 60)}s
                     </Badge>
                   )}
                 </div>

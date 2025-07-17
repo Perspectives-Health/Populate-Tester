@@ -16,13 +16,14 @@ interface TestJob {
   center_name?: string
   workflow_name?: string
   prompt: string
-  status: 'pending' | 'done' | 'error'
+  status: 'pending' | 'submitted' | 'done' | 'error'
   timestamp: string
   result?: any
   log_messages?: string[]
   screenshot_url?: string
   error?: string
   screenshot_s3_link?: string
+  llm_generation_time?: number
 }
 
 interface TestQueuePanelProps {
@@ -50,9 +51,9 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
         if (Array.isArray(jobs) && jobs.length > 0) {
           console.log('TestQueuePanel: Setting test jobs with', jobs.length, 'jobs')
           setTestJobs(jobs)
-          // Start polling for pending jobs
+          // Start polling for pending and submitted jobs
           jobs.forEach((job: TestJob) => {
-            if (job.status === 'pending') {
+            if (job.status === 'pending' || job.status === 'submitted') {
               setPollingJobs(prev => new Set(prev).add(job.id))
             }
           })
@@ -102,6 +103,55 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
     localStorage.setItem("testJobs", JSON.stringify(testJobs))
   }, [testJobs])
 
+  // Poll for submitted jobs
+  useEffect(() => {
+    if (pollingJobs.size === 0) return
+
+    const pollInterval = setInterval(async () => {
+      const submittedJobs = testJobs.filter(job => 
+        pollingJobs.has(job.id) && job.status === 'submitted'
+      )
+
+      for (const job of submittedJobs) {
+        try {
+          const result = await getTestPromptResult(job.id)
+          
+          if (result.status === 'done' || result.status === 'error') {
+            setTestJobs(prev => prev.map(j => 
+              j.id === job.id 
+                ? { 
+                    ...j, 
+                    status: result.status, 
+                    // result: result.result, 
+                    log_messages: result.log_messages,
+                    screenshot_url: result.screenshot_url, 
+                    error: result.error,
+                    llm_generation_time: result.llm_generation_time
+                  }
+                : j
+            ))
+            // Remove from polling set
+            setPollingJobs(prev => {
+              const newSet = new Set(prev)
+              newSet.delete(job.id)
+              return newSet
+            })
+          }
+        } catch (error) {
+          console.error(`Error polling job ${job.id}:`, error)
+          // On error, remove from polling to avoid infinite retries
+          setPollingJobs(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(job.id)
+            return newSet
+          })
+        }
+      }
+    }, 5000) // Poll every 5 seconds
+
+    return () => clearInterval(pollInterval)
+  }, [pollingJobs, testJobs])
+
   // Sequential queue processing
   const processQueue = async () => {
     if (isProcessing) return
@@ -112,8 +162,6 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
       const pendingJobs = testJobs.filter(job => job.status === 'pending')
       
       for (const job of pendingJobs) {
-        if (job.status !== 'pending') continue // Skip if job was already processed
-        
         try {
           // Start the job
           const req = {
@@ -121,55 +169,17 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
             workflow_id: job.workflow_id,
             prompt: job.prompt,
             screenshot_s3_link: job.screenshot_s3_link || undefined,
+            include_screenshot: !!job.screenshot_s3_link,
           }
+          console.log("req", req)
+          // return;
           
           const { job_id } = await startTestPromptJob(req)
-          
-          // Update job with real job_id
+          // Update job with real job_id and add to polling
           setTestJobs(prev => prev.map(j => 
-            j.id === job.id ? { ...j, id: job_id } : j
+            j.id === job.id ? { ...j, id: job_id, status: 'submitted' } : j
           ))
-          
-          // Poll for completion
-          let pollCount = 0
-          const maxPolls = 60 // 5 minutes max
-          
-          while (pollCount < maxPolls) {
-            await new Promise(resolve => setTimeout(resolve, 5000)) // Wait 5 seconds
-            
-            try {
-              const result = await getTestPromptResult(job_id)
-              
-              if (result.status === 'done' || result.status === 'error') {
-                setTestJobs(prev => prev.map(j => 
-                  j.id === job_id 
-                    ? { 
-                        ...j, 
-                        status: result.status, 
-                        result: result.result, 
-                        log_messages: result.log_messages,
-                        screenshot_url: result.screenshot_url, 
-                        error: result.error 
-                      }
-                    : j
-                ))
-                break
-              }
-            } catch (error) {
-              console.error(`Error polling job ${job_id}:`, error)
-            }
-            
-            pollCount++
-          }
-          
-          // If max polls reached, mark as error
-          if (pollCount >= maxPolls) {
-            setTestJobs(prev => prev.map(j => 
-              j.id === job_id 
-                ? { ...j, status: 'error', error: 'Job timed out after 5 minutes' }
-                : j
-            ))
-          }
+          setPollingJobs(prev => new Set(prev).add(job_id))
           
         } catch (error) {
           console.error(`Error processing job ${job.id}:`, error)
@@ -267,6 +277,8 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
     switch (status) {
       case 'pending':
         return <Clock className="h-4 w-4 text-yellow-400" />
+      case 'submitted':
+        return <Clock className="h-4 w-4 text-blue-400" />
       case 'done':
         return <CheckCircle className="h-4 w-4 text-green-400" />
       case 'error':
@@ -280,6 +292,8 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
     switch (status) {
       case 'pending':
         return <Badge variant="secondary" className="text-yellow-400">Pending</Badge>
+      case 'submitted':
+        return <Badge variant="secondary" className="text-blue-400">Submitted</Badge>
       case 'done':
         return <Badge variant="default" className="text-green-400">Done</Badge>
       case 'error':
@@ -359,6 +373,12 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
                     </div>
                     <div className="text-sm text-slate-400">
                       <span className="font-medium">Workflow:</span> {job.workflow_name || job.workflow_id || 'Unknown'}
+                    </div>
+                    <div className="text-sm text-slate-400">
+                      <span className="font-medium">Screenshot Included:</span> {job.screenshot_s3_link ? 'Yes' : 'No'}
+                    </div>
+                    <div className="text-sm text-slate-400">
+                      <span className="font-medium">LLM Latency:</span> {job.llm_generation_time ? `${Math.floor(job.llm_generation_time / 60)}m ${Math.floor(job.llm_generation_time % 60)}s` : 'N/A'}
                     </div>
                     {job.timestamp && (
                       <div className="text-xs text-slate-500">

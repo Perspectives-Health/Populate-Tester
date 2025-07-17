@@ -6,6 +6,7 @@ import { PromptTesterPanel } from "@/components/prompt-tester-panel"
 import { TestQueuePanel } from "@/components/test-queue-panel"
 import type { Conversation } from "@/lib/api"
 import { startTestPromptJob } from "@/lib/api"
+import { ReceiptRussianRuble } from "lucide-react"
 
 export function ResizableDashboard() {
   // Single-select logic with localStorage persistence
@@ -72,8 +73,11 @@ export function ResizableDashboard() {
     console.log('Test queued:', jobData)
     console.log('Queue panel ref at time of call:', queuePanelRef.current)
     // Call the queue panel's function directly
+    // if jobData.include_screenshot is false, set screenshot_s3_link to null
+    if (!jobData.include_screenshot) {
+      jobData.screenshot_s3_link = null
+    }
     if (queuePanelRef.current) {
-      console.log('Calling queue panel addToQueue function')
       await queuePanelRef.current.addToQueue(jobData)
     } else {
       console.log('Queue panel ref is null')
