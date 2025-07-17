@@ -71,6 +71,22 @@ export interface UserSessionsResponse {
   sessions: UserSession[];
 }
 
+export interface TestJob {
+  id: string;
+  conversation_id: string;
+  workflow_id: string;
+  center_name?: string;
+  workflow_name?: string;
+  prompt: string;
+  status: 'pending' | 'done' | 'error';
+  timestamp: string;
+  result?: any;
+  log_messages?: string[];
+  screenshot_url?: string;
+  error?: string;
+  screenshot_s3_link?: string;
+}
+
 class ApiService {
   // Use the dynamic currentApiBaseUrl for ALL APIs
   private get baseUrl() {
@@ -148,6 +164,30 @@ class ApiService {
     return this.request<UserSessionsResponse>('/internal/get_user_sessions', {
       method: 'POST',
       body: JSON.stringify({ user_id: userId }),
+    });
+  }
+
+  // Test job methods (NEW - to replace localStorage)
+  async getTestJobs(): Promise<TestJob[]> {
+    return this.request<TestJob[]>('/internal/test-jobs');
+  }
+
+  async createTestJob(job: TestJob): Promise<TestJob> {
+    return this.request<TestJob>('/internal/test-job', {
+      method: 'POST',
+      body: JSON.stringify(job),
+    });
+  }
+
+  async deleteTestJob(id: string): Promise<{ success: boolean; message: string }> {
+    return this.request<{ success: boolean; message: string }>(`/internal/test-jobs/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async clearAllTestJobs(): Promise<{ success: boolean; message: string; deleted_count: number }> {
+    return this.request<{ success: boolean; message: string; deleted_count: number }>('/internal/test-jobs/clear-all', {
+      method: 'DELETE',
     });
   }
 }
