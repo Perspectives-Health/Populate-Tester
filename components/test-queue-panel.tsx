@@ -40,6 +40,14 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
     try {
       setLoading(true)
       
+      // If external state is provided, don't override it
+      if (externalTestJobs && externalSetTestJobs) {
+        setLoading(false)
+        return
+      }
+      
+      setLoading(true)
+      
       // First, try to load from backend (completed jobs)
       const backendJobs = await apiService.getTestJobs()
       
@@ -154,11 +162,7 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
 
   // Sequential queue processing - only for pending jobs
   const processQueue = async () => {
-    console.log('processQueue called, isProcessing:', isProcessing, 'pendingJobs:', pendingJobs)
     if (isProcessing) return
-    
-    console.log('Started processing queue for polling completed jobs')
-    setIsProcessing(true)
     
     try {
       // Only poll for jobs that are pending and have real job IDs (from direct API calls)
@@ -167,10 +171,8 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
         job.id && 
         !job.id.startsWith('job-') // Real job IDs don't start with 'job-'
       )
-      console.log('Jobs to poll for completion:', jobsToPoll)
       
       for (const job of jobsToPoll) {
-        console.log('Polling for job completion:', job.id)
         
         try {
           const result = await getTestPromptResult(job.id)
@@ -189,7 +191,6 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
               j.id === job.id ? updatedJob : j
             ))
             
-            console.log('Job completed:', updatedJob.id, 'Status:', updatedJob.status)
           }
         } catch (error) {
           console.error(`Error polling job ${job.id}:`, error)
@@ -205,18 +206,13 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
 
   // Single useEffect to handle queue processing - RE-ENABLED for polling completed jobs
   useEffect(() => {
-    console.log('Queue processing useEffect triggered, pendingJobs.length:', pendingJobs.length, 'isProcessing:', isProcessing)
     if (pendingJobs.length > 0 && !isProcessing) {
-      console.log('Triggering processQueue for polling completed jobs')
       processQueue()
-    } else {
-      console.log('Not triggering processQueue - pendingJobs.length:', pendingJobs.length, 'isProcessing:', isProcessing)
     }
   }, [pendingJobs.length, isProcessing])
 
   // Handle adding new job to queue - DISABLED since we're making direct API calls
   const handleAddToQueue = async (jobData: any) => {
-    console.log('=== handleAddToQueue DISABLED - direct API calls are used instead ===')
     // This function is disabled since we're making direct API calls from the dashboard
     return
   }

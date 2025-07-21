@@ -41,8 +41,6 @@ export function ResizableDashboard() {
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 })
 
   const handleAddToQueue = async (jobData: any) => {
-    console.log('handleAddToQueue called with jobData:', jobData)
-    
     // Create a new job entry
     const newJob: TestJob = {
       id: `job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -58,10 +56,21 @@ export function ResizableDashboard() {
       custom_mapping: jobData.custom_mapping
     }
     
-    console.log('Created new job:', newJob)
-    
     // Add to local state
     setTestJobs(prev => [...prev, newJob])
+    
+    // Persist to localStorage for tab switching
+    const saved = localStorage.getItem("testJobs")
+    let existingJobs: TestJob[] = []
+    if (saved) {
+      try {
+        existingJobs = JSON.parse(saved)
+      } catch (error) {
+        console.error('Error parsing existing test jobs:', error)
+      }
+    }
+    const updatedJobs = [...existingJobs, newJob]
+    localStorage.setItem("testJobs", JSON.stringify(updatedJobs))
     
     // DISABLED: No longer calling queue panel since we make direct API calls
     // if (queuePanelRef.current) {
@@ -76,21 +85,30 @@ export function ResizableDashboard() {
   const setTestResult = () => {}
   const setTestScreenshot = () => {}
 
+  // Function to update localStorage with current jobs
+  const updateLocalStorageJobs = (jobs: TestJob[]) => {
+    try {
+      localStorage.setItem("testJobs", JSON.stringify(jobs))
+    } catch (error) {
+      console.error('Error updating localStorage jobs:', error)
+    }
+  }
+
   // Debug: Log when promptData changes
   useEffect(() => {
-    console.log('📝📝📝 promptData CHANGED:', promptData)
+    // console.log('📝📝📝 promptData CHANGED:', promptData)
   }, [promptData])
 
   // Debug: Log when mapping changes
   useEffect(() => {
-    console.log('🗺️🗺️🗺️ mapping CHANGED:', mapping)
+    // console.log('🗺️🗺️🗺️ mapping CHANGED:', mapping)
   }, [mapping])
 
   // Load prompt data when conversation changes
   useEffect(() => {
-    console.log('Conversation changed:', selectedConversation)
+    // console.log('Conversation changed:', selectedConversation)
     if (selectedConversation) {
-      console.log('Loading prompt data for conversation:', selectedConversation.id)
+      // console.log('Loading prompt data for conversation:', selectedConversation.id)
       loadPromptData()
     }
   }, [selectedConversation])
@@ -98,13 +116,13 @@ export function ResizableDashboard() {
   const loadPromptData = async () => {
     if (!selectedConversation) return
     
-    console.log('Loading prompt data for conversation:', selectedConversation.id)
+    // console.log('Loading prompt data for conversation:', selectedConversation.id)
     setLoadingPrompt(true)
     
     try {
-      console.log('Starting to load prompt data...')
+      // console.log('Starting to load prompt data...')
       const promptResponse = await apiService.getPrompt(selectedConversation.id, selectedConversation.workflow_id)
-      console.log('Prompt data loaded:', promptResponse)
+      // console.log('Prompt data loaded:', promptResponse)
       
       // Set the default prompt
       setPromptInput(promptResponse.default_prompt)
@@ -128,27 +146,11 @@ export function ResizableDashboard() {
   }
 
   const handleTest = async () => {
-    console.log('🚀🚀🚀 handleTest FUNCTION CALLED 🚀🚀🚀')
-    console.log('=== handleTest called ===')
-    console.log('promptInput:', promptInput)
-    console.log('promptData:', promptData)
-    console.log('mapping:', mapping)
-    console.log('transcript:', transcript)
-    console.log('promptInput length:', promptInput?.length)
-    console.log('promptData length:', promptData?.length)
-    console.log('mapping length:', mapping?.length)
-    console.log('transcript length:', transcript?.length)
-    console.log('promptInput trimmed:', promptInput?.trim())
-    console.log('mapping trimmed:', mapping?.trim())
-    console.log('selectedConversation:', selectedConversation)
-    
     if (!promptInput.trim() || !selectedConversation) {
-      console.log('handleTest early return - promptInput:', promptInput.trim(), 'selectedConversation:', selectedConversation)
       return
     }
 
     try {
-      console.log('Setting testLoading to true')
       setTestLoading(true)
 
       // If batch count is 1, do single test. If > 1, do batch test
@@ -169,12 +171,6 @@ export function ResizableDashboard() {
           environment: environment
         }
 
-        console.log('=== Created newJob ===')
-        console.log('newJob.prompt:', newJob.prompt)
-        console.log('newJob.custom_mapping:', newJob.custom_mapping)
-        console.log('newJob.include_screenshot:', newJob.include_screenshot)
-        console.log('Full newJob object:', newJob)
-        
         // Make API call directly
         const apiPayload = {
           conversation_id: newJob.conversation_id,
@@ -186,9 +182,7 @@ export function ResizableDashboard() {
           environment: newJob.environment
         }
         
-        console.log('Making single API call:', apiPayload)
         const result = await startTestPromptJob(apiPayload)
-        console.log('Single API call successful:', result)
         
         // Add completed job to queue for display
         const completedJob = {
@@ -196,17 +190,18 @@ export function ResizableDashboard() {
           id: result.job_id,
           status: 'pending' as const
         }
-        setTestJobs(prev => [...prev, completedJob])
+        setTestJobs(prev => {
+          const updatedJobs = [...prev, completedJob]
+          updateLocalStorageJobs(updatedJobs)
+          return updatedJobs
+        })
         
       } else {
         // Batch test
-        console.log(`Starting batch test with ${batchCount} requests`)
         setIsBatchProcessing(true)
         setBatchProgress({ current: 0, total: batchCount })
         
         for (let i = 0; i < batchCount; i++) {
-          console.log(`Creating batch job ${i + 1}/${batchCount}`)
-          
           const newJob = {
             id: crypto.randomUUID(),
             conversation_id: selectedConversation.id,
@@ -222,8 +217,6 @@ export function ResizableDashboard() {
             environment: environment
           }
 
-          console.log(`Batch job ${i + 1} created:`, newJob)
-          
           // Make API call directly
           try {
             const apiPayload = {
@@ -236,9 +229,7 @@ export function ResizableDashboard() {
               environment: newJob.environment
             }
             
-            console.log(`Making direct API call ${i + 1}/${batchCount}:`, apiPayload)
             const result = await startTestPromptJob(apiPayload)
-            console.log(`API call ${i + 1} successful:`, result)
             
             // Add completed job to queue for display
             const completedJob = {
@@ -246,17 +237,24 @@ export function ResizableDashboard() {
               id: result.job_id,
               status: 'pending' as const
             }
-            setTestJobs(prev => [...prev, completedJob])
+            setTestJobs(prev => {
+              const updatedJobs = [...prev, completedJob]
+              updateLocalStorageJobs(updatedJobs)
+              return updatedJobs
+            })
             
           } catch (error) {
-            console.error(`API call ${i + 1} failed:`, error)
             // Add failed job to queue for display
             const failedJob = {
               ...newJob,
               status: 'error' as const,
               error: error instanceof Error ? error.message : String(error)
             }
-            setTestJobs(prev => [...prev, failedJob])
+            setTestJobs(prev => {
+              const updatedJobs = [...prev, failedJob]
+              updateLocalStorageJobs(updatedJobs)
+              return updatedJobs
+            })
           }
           
           // Update progress
@@ -264,12 +262,10 @@ export function ResizableDashboard() {
           
           // Wait 5 seconds before next job (except for the last one)
           if (i < batchCount - 1) {
-            console.log(`Waiting 5 seconds before next batch job...`)
             await new Promise(resolve => setTimeout(resolve, 5000))
           }
         }
         
-        console.log('Batch test completed!')
         setIsBatchProcessing(false)
         setBatchProgress({ current: 0, total: 0 })
       }
@@ -277,7 +273,6 @@ export function ResizableDashboard() {
     } catch (err) {
       console.error('Error in test:', err)
     } finally {
-      console.log('Setting testLoading to false')
       setTestLoading(false)
     }
   }
@@ -452,7 +447,7 @@ export function ResizableDashboard() {
                                 placeholder={loadingPrompt ? "Loading mapping..." : "Select a conversation to see the mapping"}
                                 value={mapping}
                                 onChange={(e) => {
-                                  console.log('📝 MAPPING EDIT:', e.target.value)
+                                  // console.log('📝 MAPPING EDIT:', e.target.value)
                                   setMapping(e.target.value)
                                 }}
                                 className="flex-1 min-h-0 resize-none rounded-lg border border-slate-700 bg-slate-900/50 text-base custom-scrollbar font-mono"

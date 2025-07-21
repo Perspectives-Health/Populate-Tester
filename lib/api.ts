@@ -211,15 +211,6 @@ export async function startTestPromptJob(payload: {
   const endpoint = payload.environment === "production" ? "/internal/test-prompt-prod" : "/internal/test-prompt";
   const url = `${currentApiBaseUrl}${endpoint}`;
   
-  console.log('=== API: startTestPromptJob called ===')
-  console.log('Environment:', payload.environment || 'testing')
-  console.log('Endpoint:', endpoint)
-  console.log('payload.prompt:', payload.prompt)
-  console.log('payload.custom_mapping:', payload.custom_mapping)
-  console.log('payload.include_screenshot:', payload.include_screenshot)
-  console.log('Full payload:', payload)
-  console.log('API: Sending test prompt request to backend:', payload)
-  
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -233,7 +224,6 @@ export async function startTestPromptJob(payload: {
   }
   
   const result = await res.json()
-  console.log('API: Test prompt request successful:', result)
   return result;
 }
 
