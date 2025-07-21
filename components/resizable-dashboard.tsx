@@ -44,7 +44,9 @@ export function ResizableDashboard() {
       prompt: jobData.prompt,
       status: 'pending',
       timestamp: new Date().toISOString(),
-      screenshot_s3_link: jobData.screenshot_s3_link
+      screenshot_s3_link: jobData.screenshot_s3_link,
+      include_screenshot: jobData.include_screenshot,
+      custom_mapping: jobData.custom_mapping
     }
     
     console.log('Created new job:', newJob)
@@ -152,15 +154,25 @@ export function ResizableDashboard() {
         timestamp: new Date().toISOString(),
         screenshot_s3_link: selectedConversation.mapping_screenshot_s3_link,
         include_screenshot: !!selectedConversation.mapping_screenshot_s3_link && includeScreenshot,
-        // Include the edited mapping data
-        prompt_data: mapping // Use the edited mapping instead of full promptData
+        // Include the edited mapping data as custom_mapping (parse string to object)
+        custom_mapping: mapping ? JSON.parse(mapping) : undefined
       }
 
       console.log('=== Created newJob ===')
       console.log('newJob.prompt:', newJob.prompt)
-      console.log('newJob.prompt_data:', newJob.prompt_data)
+      console.log('newJob.custom_mapping:', newJob.custom_mapping)
+      console.log('newJob.include_screenshot:', newJob.include_screenshot)
       console.log('Full newJob object:', newJob)
       console.log('queuePanelRef.current:', queuePanelRef.current)
+      
+      // Debug: Log the exact values being used
+      console.log('🔍 DEBUG VALUES:')
+      console.log('  promptInput:', promptInput)
+      console.log('  mapping:', mapping)
+      console.log('  mapping length:', mapping?.length)
+      console.log('  mapping trimmed:', mapping?.trim())
+      console.log('  includeScreenshot state:', includeScreenshot)
+      console.log('  selectedConversation.mapping_screenshot_s3_link:', selectedConversation.mapping_screenshot_s3_link)
 
       // Add test to queue
       await handleAddToQueue(newJob)
@@ -305,7 +317,10 @@ export function ResizableDashboard() {
                               <Textarea
                                 placeholder={loadingPrompt ? "Loading mapping..." : "Select a conversation to see the mapping"}
                                 value={mapping}
-                                onChange={(e) => setMapping(e.target.value)}
+                                onChange={(e) => {
+                                  console.log('📝 MAPPING EDIT:', e.target.value)
+                                  setMapping(e.target.value)
+                                }}
                                 className="flex-1 min-h-0 resize-none rounded-lg border border-slate-700 bg-slate-900/50 text-base custom-scrollbar font-mono"
                                 style={{ height: "100%" }}
                               />

@@ -85,7 +85,8 @@ export interface TestJob {
   screenshot_url?: string;
   error?: string;
   screenshot_s3_link?: string;
-  prompt_data?: string; // Add support for custom prompt data
+  include_screenshot?: boolean;
+  custom_mapping?: Record<string, any>; // Changed from string to object
 }
 
 class ApiService {
@@ -202,12 +203,13 @@ export async function startTestPromptJob(payload: {
   prompt: string;
   screenshot_s3_link?: string;
   include_screenshot?: boolean;
-  prompt_data?: string;
+  custom_mapping?: Record<string, any>; // Changed from prompt_data to custom_mapping
 }): Promise<{ job_id: string }> {
   const url = `${currentApiBaseUrl}/internal/test-prompt`;
   console.log('=== API: startTestPromptJob called ===')
   console.log('payload.prompt:', payload.prompt)
-  console.log('payload.prompt_data:', payload.prompt_data)
+  console.log('payload.custom_mapping:', payload.custom_mapping)
+  console.log('payload.include_screenshot:', payload.include_screenshot)
   console.log('Full payload:', payload)
   console.log('API: Sending test prompt request to backend:', payload)
   const res = await fetch(url, {

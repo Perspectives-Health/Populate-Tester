@@ -175,15 +175,20 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
             workflow_id: job.workflow_id,
             prompt: job.prompt,
             screenshot_s3_link: job.screenshot_s3_link || undefined,
-            // Include the edited prompt data if available
-            prompt_data: job.prompt_data || undefined,
+            include_screenshot: job.include_screenshot || false,
+            // Include the edited mapping data if available (ensure it's an object)
+            custom_mapping: job.custom_mapping ? 
+              (typeof job.custom_mapping === 'string' ? JSON.parse(job.custom_mapping) : job.custom_mapping) : 
+              undefined,
           }
           
           console.log('=== Starting test prompt job ===')
           console.log('job.prompt:', job.prompt)
-          console.log('job.prompt_data:', job.prompt_data)
+          console.log('job.custom_mapping:', job.custom_mapping)
+          console.log('job.include_screenshot:', job.include_screenshot)
           console.log('req.prompt:', req.prompt)
-          console.log('req.prompt_data:', req.prompt_data)
+          console.log('req.custom_mapping:', req.custom_mapping)
+          console.log('req.include_screenshot:', req.include_screenshot)
           console.log('Full request object:', req)
           
           const { job_id } = await startTestPromptJob(req)
@@ -287,7 +292,8 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
       console.log('=== handleAddToQueue called ===')
       console.log('jobData:', jobData)
       console.log('jobData.prompt:', jobData.prompt)
-      console.log('jobData.prompt_data:', jobData.prompt_data)
+      console.log('jobData.custom_mapping:', jobData.custom_mapping)
+      console.log('jobData.include_screenshot:', jobData.include_screenshot)
       
       // Create a new job entry
       const newJob: TestJob = {
@@ -300,12 +306,16 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
         status: 'pending',
         timestamp: new Date().toISOString(),
         screenshot_s3_link: jobData.screenshot_s3_link,
-        prompt_data: jobData.prompt_data // Make sure this is included
+        include_screenshot: jobData.include_screenshot,
+        custom_mapping: jobData.custom_mapping ? 
+          (typeof jobData.custom_mapping === 'string' ? JSON.parse(jobData.custom_mapping) : jobData.custom_mapping) : 
+          undefined
       }
       
       console.log('=== Created newJob in TestQueuePanel ===')
       console.log('newJob.prompt:', newJob.prompt)
-      console.log('newJob.prompt_data:', newJob.prompt_data)
+      console.log('newJob.custom_mapping:', newJob.custom_mapping)
+      console.log('newJob.include_screenshot:', newJob.include_screenshot)
       console.log('Full newJob object:', newJob)
       
       // Add to local state (will be saved to localStorage via useEffect)
