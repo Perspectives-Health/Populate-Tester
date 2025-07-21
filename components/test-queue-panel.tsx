@@ -13,16 +13,23 @@ interface TestQueuePanelProps {
   selectedConversation: any
   onAddToQueue: (jobData: any) => Promise<void>
   conversations?: any[] // Add conversations list to look up names
+  onTestResultClick?: (testResult: TestJob) => void
+  testJobs?: TestJob[]
+  setTestJobs?: (jobs: TestJob[] | ((prev: TestJob[]) => TestJob[])) => void
 }
 
 export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise<void> }, TestQueuePanelProps>(
-  ({ selectedConversation, onAddToQueue, conversations }, ref) => {
-  const [testJobs, setTestJobs] = useState<TestJob[]>([])
+  ({ selectedConversation, onAddToQueue, conversations, onTestResultClick, testJobs: externalTestJobs, setTestJobs: externalSetTestJobs }, ref) => {
+  const [internalTestJobs, setInternalTestJobs] = useState<TestJob[]>([])
   const [pendingJobs, setPendingJobs] = useState<TestJob[]>([])
   const [pollingJobs, setPollingJobs] = useState<Set<string>>(new Set())
   const [isProcessing, setIsProcessing] = useState(false)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+
+  // Use external state if provided, otherwise use internal state
+  const testJobs = externalTestJobs || internalTestJobs
+  const setTestJobs = externalSetTestJobs || setInternalTestJobs
 
   // Load test jobs from localStorage on mount
   useEffect(() => {
@@ -146,17 +153,21 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
 
   // Sequential queue processing - only for pending jobs
   const processQueue = async () => {
+    console.log('processQueue called, isProcessing:', isProcessing, 'pendingJobs:', pendingJobs)
     if (isProcessing) return
     
+    console.log('Started processing queue')
     setIsProcessing(true)
     
     try {
       // Only process pending jobs from localStorage (not backend jobs)
       const jobsToProcess = pendingJobs.filter(job => job.status === 'pending')
+      console.log('Jobs to process:', jobsToProcess)
       
       for (const job of jobsToProcess) {
         if (job.status !== 'pending') continue // Skip if job was already processed
         
+        console.log('Processing job:', job)
         try {
           // Start the job
           const req = {
@@ -166,11 +177,15 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
             screenshot_s3_link: job.screenshot_s3_link || undefined,
           }
           
+          console.log('Starting test prompt job with request:', req)
           const { job_id } = await startTestPromptJob(req)
+          console.log('Received job_id from backend:', job_id)
           
           // Update job with real job_id
+          const updatedJob = { ...job, id: job_id }
+          console.log('Updated job with real job_id:', updatedJob)
           setTestJobs(prev => prev.map(j => 
-            j.id === job.id ? { ...j, id: job_id } : j
+            j.id === job.id ? updatedJob : j
           ))
           
           // Poll for completion
@@ -249,14 +264,20 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
 
   // Single useEffect to handle queue processing
   useEffect(() => {
+    console.log('Queue processing useEffect triggered, pendingJobs.length:', pendingJobs.length, 'isProcessing:', isProcessing)
     if (pendingJobs.length > 0 && !isProcessing) {
+      console.log('Triggering processQueue')
       processQueue()
+    } else {
+      console.log('Not triggering processQueue - pendingJobs.length:', pendingJobs.length, 'isProcessing:', isProcessing)
     }
   }, [pendingJobs.length, isProcessing])
 
   // Handle adding new job to queue
   const handleAddToQueue = async (jobData: any) => {
     try {
+      console.log('handleAddToQueue called with jobData:', jobData)
+      
       // Create a new job entry
       const newJob: TestJob = {
         id: `job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -269,6 +290,8 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
         timestamp: new Date().toISOString(),
         screenshot_s3_link: jobData.screenshot_s3_link
       }
+      
+      console.log('Created new job:', newJob)
       
       // Add to local state (will be saved to localStorage via useEffect)
       setTestJobs(prev => [...prev, newJob])
