@@ -132,29 +132,30 @@ export function ResizableDashboard() {
 
   return (
     <div className="h-screen flex flex-col bg-slate-950">
-      {/* Header */}
-      <header className="border-b border-slate-800 px-6 py-4 neon-accent">
-        <h1 className="heading-1-neon">LLM Testing Dashboard</h1>
-        <p className="text-slate-400">Advanced prompt testing with production conversations</p>
-      </header>
+      {/* Header and Tabs in the same row */}
+      <div className="border-b border-slate-800 px-6 py-4 neon-accent flex items-center justify-between bg-slate-950">
+        <div>
+          <h1 className="heading-1-neon">LLM Testing Dashboard</h1>
+          <p className="text-slate-400">Advanced prompt testing with production conversations</p>
+        </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
+          <TabsList className="flex gap-4 bg-slate-900 px-2 py-1">
+            <TabsTrigger value="conversations" className="data-[state=active]:bg-slate-800 px-6 py-3 text-base font-medium">
+              Conversations
+            </TabsTrigger>
+            <TabsTrigger value="testing" className="data-[state=active]:bg-slate-800 px-6 py-3 text-base font-medium">
+              Testing
+            </TabsTrigger>
+            <TabsTrigger value="test-queue" className="data-[state=active]:bg-slate-800 px-6 py-3 text-base font-medium">
+              Test Queue
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
-      {/* Tabbed Interface */}
+      {/* Tabbed Content */}
       <div className="flex-1 overflow-hidden">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-          <div className="border-b border-slate-800 px-6">
-            <TabsList className="grid w-full grid-cols-3 bg-slate-900">
-              <TabsTrigger value="conversations" className="data-[state=active]:bg-slate-800">
-                Conversations
-              </TabsTrigger>
-              <TabsTrigger value="testing" className="data-[state=active]:bg-slate-800">
-                Testing
-              </TabsTrigger>
-              <TabsTrigger value="test-queue" className="data-[state=active]:bg-slate-800">
-                Test Queue
-              </TabsTrigger>
-            </TabsList>
-          </div>
-
           <div className="flex-1 overflow-hidden">
             {/* Conversations Tab */}
             <TabsContent value="conversations" className="h-full m-0">
