@@ -152,6 +152,7 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
   }
 
   const handleTest = async () => {
+    console.log('🔍🔍🔍 PROMPT-TESTER-PANEL handleTest CALLED 🔍🔍🔍')
     if (!promptInput.trim() || !selectedConversation) return
     
     try {

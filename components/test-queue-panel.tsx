@@ -175,9 +175,17 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
             workflow_id: job.workflow_id,
             prompt: job.prompt,
             screenshot_s3_link: job.screenshot_s3_link || undefined,
+            // Include the edited prompt data if available
+            prompt_data: job.prompt_data || undefined,
           }
           
-          console.log('Starting test prompt job with request:', req)
+          console.log('=== Starting test prompt job ===')
+          console.log('job.prompt:', job.prompt)
+          console.log('job.prompt_data:', job.prompt_data)
+          console.log('req.prompt:', req.prompt)
+          console.log('req.prompt_data:', req.prompt_data)
+          console.log('Full request object:', req)
+          
           const { job_id } = await startTestPromptJob(req)
           console.log('Received job_id from backend:', job_id)
           
@@ -276,7 +284,10 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
   // Handle adding new job to queue
   const handleAddToQueue = async (jobData: any) => {
     try {
-      console.log('handleAddToQueue called with jobData:', jobData)
+      console.log('=== handleAddToQueue called ===')
+      console.log('jobData:', jobData)
+      console.log('jobData.prompt:', jobData.prompt)
+      console.log('jobData.prompt_data:', jobData.prompt_data)
       
       // Create a new job entry
       const newJob: TestJob = {
@@ -288,10 +299,14 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
         prompt: jobData.prompt,
         status: 'pending',
         timestamp: new Date().toISOString(),
-        screenshot_s3_link: jobData.screenshot_s3_link
+        screenshot_s3_link: jobData.screenshot_s3_link,
+        prompt_data: jobData.prompt_data // Make sure this is included
       }
       
-      console.log('Created new job:', newJob)
+      console.log('=== Created newJob in TestQueuePanel ===')
+      console.log('newJob.prompt:', newJob.prompt)
+      console.log('newJob.prompt_data:', newJob.prompt_data)
+      console.log('Full newJob object:', newJob)
       
       // Add to local state (will be saved to localStorage via useEffect)
       setTestJobs(prev => [...prev, newJob])

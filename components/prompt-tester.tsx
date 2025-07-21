@@ -38,6 +38,7 @@ export function PromptTester({ onTest, selectedConversation, isLoading }: Prompt
   const [savedPrompts, setSavedPrompts] = useState(defaultPrompts)
 
   const handleTest = async () => {
+    console.log('🎯🎯🎯 PROMPT-TESTER handleTest CALLED 🎯🎯🎯')
     if (!currentPrompt.trim() || !selectedConversation) return
 
     await onTest(currentPrompt, [selectedConversation.id])

@@ -22,8 +22,10 @@ export function ResizableDashboard() {
   const [activeTab, setActiveTab] = useState("conversations")
   const [promptInput, setPromptInput] = useState("")
   const [promptData, setPromptData] = useState("")
+  const [mapping, setMapping] = useState("")
+  const [transcript, setTranscript] = useState("")
   const [loadingPrompt, setLoadingPrompt] = useState(false)
-  const [includeScreenshot, setIncludeScreenshot] = useState(true)
+  const [includeScreenshot, setIncludeScreenshot] = useState(false)
   const [testLoading, setTestLoading] = useState(false)
   const [testJobs, setTestJobs] = useState<TestJob[]>([])
   const [editDataMode, setEditDataMode] = useState(false)
@@ -63,6 +65,16 @@ export function ResizableDashboard() {
   const setTestResult = () => {}
   const setTestScreenshot = () => {}
 
+  // Debug: Log when promptData changes
+  useEffect(() => {
+    console.log('📝📝📝 promptData CHANGED:', promptData)
+  }, [promptData])
+
+  // Debug: Log when mapping changes
+  useEffect(() => {
+    console.log('🗺️🗺️🗺️ mapping CHANGED:', mapping)
+  }, [mapping])
+
   // Load prompt data when conversation changes
   useEffect(() => {
     console.log('Conversation changed:', selectedConversation)
@@ -75,13 +87,28 @@ export function ResizableDashboard() {
   const loadPromptData = async () => {
     if (!selectedConversation) return
     
+    console.log('Loading prompt data for conversation:', selectedConversation.id)
+    setLoadingPrompt(true)
+    
     try {
       console.log('Starting to load prompt data...')
-      setLoadingPrompt(true)
-      const response = await apiService.getPrompt(selectedConversation.id, selectedConversation.workflow_id)
-      console.log('Prompt data loaded:', response)
-      setPromptInput(response.default_prompt)
-      setPromptData(response.data)
+      const promptResponse = await apiService.getPrompt(selectedConversation.id, selectedConversation.workflow_id)
+      console.log('Prompt data loaded:', promptResponse)
+      
+      // Set the default prompt
+      setPromptInput(promptResponse.default_prompt)
+      
+      // Separate mapping and transcript
+      setMapping(JSON.stringify(promptResponse.mapping, null, 2))
+      setTranscript(promptResponse.transcript)
+      
+      // Keep the full prompt data for backward compatibility
+      setPromptData(JSON.stringify({
+        data: promptResponse.data,
+        mapping: promptResponse.mapping,
+        transcript: promptResponse.transcript
+      }, null, 2))
+      
     } catch (error) {
       console.error('Error loading prompt data:', error)
     } finally {
@@ -90,7 +117,20 @@ export function ResizableDashboard() {
   }
 
   const handleTest = async () => {
-    console.log('handleTest called')
+    console.log('🚀🚀🚀 handleTest FUNCTION CALLED 🚀🚀🚀')
+    console.log('=== handleTest called ===')
+    console.log('promptInput:', promptInput)
+    console.log('promptData:', promptData)
+    console.log('mapping:', mapping)
+    console.log('transcript:', transcript)
+    console.log('promptInput length:', promptInput?.length)
+    console.log('promptData length:', promptData?.length)
+    console.log('mapping length:', mapping?.length)
+    console.log('transcript length:', transcript?.length)
+    console.log('promptInput trimmed:', promptInput?.trim())
+    console.log('mapping trimmed:', mapping?.trim())
+    console.log('selectedConversation:', selectedConversation)
+    
     if (!promptInput.trim() || !selectedConversation) {
       console.log('handleTest early return - promptInput:', promptInput.trim(), 'selectedConversation:', selectedConversation)
       return
@@ -100,21 +140,26 @@ export function ResizableDashboard() {
       console.log('Setting testLoading to true')
       setTestLoading(true)
 
-      // Create a new test job
+      // Create a new test job with the current edited values
       const newJob = {
         id: crypto.randomUUID(),
         conversation_id: selectedConversation.id,
         workflow_id: selectedConversation.workflow_id,
         center_name: selectedConversation.center_name,
         workflow_name: selectedConversation.workflow_name,
-        prompt: promptInput,
+        prompt: promptInput, // Use the current edited prompt
         status: 'pending' as const,
         timestamp: new Date().toISOString(),
         screenshot_s3_link: selectedConversation.mapping_screenshot_s3_link,
-        include_screenshot: !!selectedConversation.mapping_screenshot_s3_link && includeScreenshot
+        include_screenshot: !!selectedConversation.mapping_screenshot_s3_link && includeScreenshot,
+        // Include the edited mapping data
+        prompt_data: mapping // Use the edited mapping instead of full promptData
       }
 
-      console.log('Created newJob:', newJob)
+      console.log('=== Created newJob ===')
+      console.log('newJob.prompt:', newJob.prompt)
+      console.log('newJob.prompt_data:', newJob.prompt_data)
+      console.log('Full newJob object:', newJob)
       console.log('queuePanelRef.current:', queuePanelRef.current)
 
       // Add test to queue
@@ -175,7 +220,8 @@ export function ResizableDashboard() {
               <div className="h-full p-6">
                 {selectedConversation ? (
                   <ResizablePanelGroup direction="horizontal" className="h-full">
-                    <ResizablePanel defaultSize={50} minSize={30}>
+                    {/* Left Panel - Prompt Instructions */}
+                    <ResizablePanel defaultSize={33} minSize={25}>
                       <Card className="h-full">
                         <CardContent className="p-4 h-full">
                           <div className="flex flex-col h-full">
@@ -236,13 +282,16 @@ export function ResizableDashboard() {
                         </CardContent>
                       </Card>
                     </ResizablePanel>
+                    
                     <ResizableHandle />
-                    <ResizablePanel defaultSize={50} minSize={30}>
+                    
+                    {/* Middle Panel - Mapping (Editable) */}
+                    <ResizablePanel defaultSize={33} minSize={25}>
                       <Card className="h-full">
                         <CardContent className="p-4 h-full">
                           <div className="flex flex-col h-full">
                             <label className="heading-3-neon mb-1 flex items-center justify-between">
-                              Prompt Data (Mapping + Transcript)
+                              Mapping (Editable)
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -254,15 +303,15 @@ export function ResizableDashboard() {
                             </label>
                             {editDataMode ? (
                               <Textarea
-                                placeholder={loadingPrompt ? "Loading data..." : "Select a conversation to see the data"}
-                                value={promptData}
-                                onChange={(e) => setPromptData(e.target.value)}
+                                placeholder={loadingPrompt ? "Loading mapping..." : "Select a conversation to see the mapping"}
+                                value={mapping}
+                                onChange={(e) => setMapping(e.target.value)}
                                 className="flex-1 min-h-0 resize-none rounded-lg border border-slate-700 bg-slate-900/50 text-base custom-scrollbar font-mono"
                                 style={{ height: "100%" }}
                               />
                             ) : (
                               <div className="flex-1 overflow-auto rounded-lg border border-slate-700 bg-slate-900/50 p-4 custom-scrollbar">
-                                {promptData ? (
+                                {mapping ? (
                                   <SyntaxHighlighter
                                     language="json"
                                     style={vscDarkPlus}
@@ -279,24 +328,41 @@ export function ResizableDashboard() {
                                     wrapLines={true}
                                     lineProps={{ style: { whiteSpace: 'pre-wrap', wordBreak: 'break-word' } }}
                                   >
-                                    {(() => {
-                                      try {
-                                        // Try to parse and pretty-print the JSON
-                                        const parsed = JSON.parse(promptData)
-                                        return JSON.stringify(parsed, null, 2)
-                                      } catch {
-                                        // If not valid JSON, display as-is
-                                        return promptData
-                                      }
-                                    })()}
+                                    {mapping}
                                   </SyntaxHighlighter>
                                 ) : (
                                   <div className="text-slate-400 text-sm">
-                                    {loadingPrompt ? "Loading data..." : "Select a conversation to see the data"}
+                                    {loadingPrompt ? "Loading mapping..." : "Select a conversation to see the mapping"}
                                   </div>
                                 )}
                               </div>
                             )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </ResizablePanel>
+                    
+                    <ResizableHandle />
+                    
+                    {/* Right Panel - Transcript (Read-only) */}
+                    <ResizablePanel defaultSize={34} minSize={25}>
+                      <Card className="h-full">
+                        <CardContent className="p-4 h-full">
+                          <div className="flex flex-col h-full">
+                            <label className="heading-3-neon mb-1">
+                              Transcript (Read-only)
+                            </label>
+                            <div className="flex-1 overflow-auto rounded-lg border border-slate-700 bg-slate-900/50 p-4 custom-scrollbar">
+                              {transcript ? (
+                                <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                                  {transcript}
+                                </div>
+                              ) : (
+                                <div className="text-slate-400 text-sm">
+                                  {loadingPrompt ? "Loading transcript..." : "Select a conversation to see the transcript"}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
