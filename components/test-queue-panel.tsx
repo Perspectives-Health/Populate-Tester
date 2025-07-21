@@ -16,10 +16,11 @@ interface TestQueuePanelProps {
   onTestResultClick?: (testResult: TestJob) => void
   testJobs?: TestJob[]
   setTestJobs?: (jobs: TestJob[] | ((prev: TestJob[]) => TestJob[])) => void
+  refreshTestJobs?: () => Promise<void>
 }
 
 export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise<void> }, TestQueuePanelProps>(
-  ({ selectedConversation, onAddToQueue, conversations, onTestResultClick, testJobs: externalTestJobs, setTestJobs: externalSetTestJobs }, ref) => {
+  ({ selectedConversation, onAddToQueue, conversations, onTestResultClick, testJobs: externalTestJobs, setTestJobs: externalSetTestJobs, refreshTestJobs }, ref) => {
   const [internalTestJobs, setInternalTestJobs] = useState<TestJob[]>([])
   const [pendingJobs, setPendingJobs] = useState<TestJob[]>([])
   const [pollingJobs, setPollingJobs] = useState<Set<string>>(new Set())
@@ -40,80 +41,33 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
     try {
       setLoading(true)
       
-      // If external state is provided, don't override it
+      // If external state is provided, don't load from backend
+      // The parent component will handle loading
       if (externalTestJobs && externalSetTestJobs) {
         setLoading(false)
         return
       }
       
-      setLoading(true)
-      
-      // First, try to load from backend (completed jobs)
+      // Load all jobs from backend (both pending and completed)
       const backendJobs = await apiService.getTestJobs()
       
-      // Ensure all backend jobs are marked as completed
-      const completedBackendJobs = backendJobs.map(job => ({
-        ...job,
-        status: 'done' as const
-      }))
+      // Set all jobs from backend
+      setTestJobs(backendJobs)
       
-      // Get backend job IDs for comparison
-      const backendJobIds = new Set(completedBackendJobs.map(job => job.id))
-      
-      // Then load from localStorage (pending jobs)
-      const saved = localStorage.getItem("testJobs")
-      let localStorageJobs: TestJob[] = []
-      
-      if (saved) {
-        try {
-          const jobs = JSON.parse(saved)
-          if (Array.isArray(jobs) && jobs.length > 0) {
-            localStorageJobs = jobs
-          }
-        } catch (error) {
-          console.error('Error parsing saved test jobs:', error)
-        }
-      }
-      
-      // Keep all localStorage jobs (both pending and completed) for display
-      // Only remove from localStorage if they exist in backend to avoid duplicates
-      const uniqueLocalStorageJobs = localStorageJobs.filter(job => !backendJobIds.has(job.id))
-      
-      // Update localStorage with only unique pending jobs (for future reference)
-      const pendingJobs = uniqueLocalStorageJobs.filter(job => job.status === 'pending')
-      localStorage.setItem("testJobs", JSON.stringify(pendingJobs))
-      
-      // Combine backend jobs (completed) with all localStorage jobs (both pending and completed)
-      const allJobs = [...completedBackendJobs, ...localStorageJobs]
-      setTestJobs(allJobs)
-      
-      // Set pending jobs separately - only unique localStorage jobs can be pending
+      // Set pending jobs for polling
+      const pendingJobs = backendJobs.filter(job => job.status === 'pending')
       setPendingJobs(pendingJobs)
       
-      // Only start polling for pending jobs that haven't been processed yet
+      // Start polling for pending jobs
       pendingJobs.forEach((job: TestJob) => {
         setPollingJobs(prev => new Set(prev).add(job.id))
       })
       
     } catch (error) {
       console.error('Error loading test jobs:', error)
-      // Fallback to localStorage only
-      const saved = localStorage.getItem("testJobs")
-      if (saved) {
-        try {
-          const jobs = JSON.parse(saved)
-          if (Array.isArray(jobs) && jobs.length > 0) {
-            setTestJobs(jobs)
-            const pendingJobs = jobs.filter(job => job.status === 'pending')
-            setPendingJobs(pendingJobs)
-            pendingJobs.forEach((job: TestJob) => {
-              setPollingJobs(prev => new Set(prev).add(job.id))
-            })
-          }
-        } catch (error) {
-          console.error('Error parsing saved test jobs:', error)
-        }
-      }
+      // Fallback to empty state
+      setTestJobs([])
+      setPendingJobs([])
     } finally {
       setLoading(false)
     }
@@ -187,9 +141,20 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
               error: result.error 
             }
             
+            // Update the job in the backend
+            try {
+              await apiService.createTestJob(updatedJob)
+            } catch (error) {
+              console.error(`Error updating job ${job.id} in backend:`, error)
+            }
+            
+            // Update local state
             setTestJobs(prev => prev.map(j => 
               j.id === job.id ? updatedJob : j
             ))
+            
+            // Update pending jobs list
+            setPendingJobs(prev => prev.filter(j => j.id !== job.id))
             
           }
         } catch (error) {
@@ -293,7 +258,7 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
         <CardHeader>
           <div className="flex items-center justify-between">
             <h2 className="heading-2-neon">Test Queue</h2>
-            <Button onClick={loadTestJobs} variant="outline" size="sm">
+            <Button onClick={refreshTestJobs || loadTestJobs} variant="outline" size="sm">
               Refresh
             </Button>
           </div>
@@ -313,7 +278,7 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
         <div className="flex items-center justify-between">
           <h2 className="heading-2-neon">Test Queue ({testJobs.length})</h2>
           <div className="flex items-center gap-2">
-            <Button onClick={loadTestJobs} variant="outline" size="sm">
+            <Button onClick={refreshTestJobs || loadTestJobs} variant="outline" size="sm">
               Refresh
             </Button>
             {testJobs.length > 0 && (

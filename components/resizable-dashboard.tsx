@@ -85,15 +85,6 @@ export function ResizableDashboard() {
   const setTestResult = () => {}
   const setTestScreenshot = () => {}
 
-  // Function to update localStorage with current jobs
-  const updateLocalStorageJobs = (jobs: TestJob[]) => {
-    try {
-      localStorage.setItem("testJobs", JSON.stringify(jobs))
-    } catch (error) {
-      console.error('Error updating localStorage jobs:', error)
-    }
-  }
-
   // Debug: Log when promptData changes
   useEffect(() => {
     // console.log('📝📝📝 promptData CHANGED:', promptData)
@@ -145,6 +136,32 @@ export function ResizableDashboard() {
     }
   }
 
+  // Load test jobs when component mounts and when test queue tab is activated
+  useEffect(() => {
+    if (activeTab === "test-queue") {
+      loadTestJobs()
+    }
+  }, [activeTab])
+
+  // Load test jobs on component mount
+  useEffect(() => {
+    loadTestJobs()
+  }, [])
+
+  const loadTestJobs = async () => {
+    try {
+      const backendJobs = await apiService.getTestJobs()
+      setTestJobs(backendJobs)
+    } catch (error) {
+      console.error('Error loading test jobs:', error)
+      setTestJobs([])
+    }
+  }
+
+  const refreshTestJobs = async () => {
+    await loadTestJobs()
+  }
+
   const handleTest = async () => {
     if (!promptInput.trim() || !selectedConversation) {
       return
@@ -184,15 +201,19 @@ export function ResizableDashboard() {
         
         const result = await startTestPromptJob(apiPayload)
         
-        // Add completed job to queue for display
+        // Create the job object with the real job ID from the API
         const completedJob = {
           ...newJob,
           id: result.job_id,
           status: 'pending' as const
         }
+        
+        // Post the job to the backend for persistence
+        await apiService.createTestJob(completedJob)
+        
+        // Add to local state for display
         setTestJobs(prev => {
           const updatedJobs = [...prev, completedJob]
-          updateLocalStorageJobs(updatedJobs)
           return updatedJobs
         })
         
@@ -231,15 +252,19 @@ export function ResizableDashboard() {
             
             const result = await startTestPromptJob(apiPayload)
             
-            // Add completed job to queue for display
+            // Create the job object with the real job ID from the API
             const completedJob = {
               ...newJob,
               id: result.job_id,
               status: 'pending' as const
             }
+            
+            // Post the job to the backend for persistence
+            await apiService.createTestJob(completedJob)
+            
+            // Add to local state for display
             setTestJobs(prev => {
               const updatedJobs = [...prev, completedJob]
-              updateLocalStorageJobs(updatedJobs)
               return updatedJobs
             })
             
@@ -250,9 +275,12 @@ export function ResizableDashboard() {
               status: 'error' as const,
               error: error instanceof Error ? error.message : String(error)
             }
+            
+            // Post the failed job to the backend for persistence
+            await apiService.createTestJob(failedJob)
+            
             setTestJobs(prev => {
               const updatedJobs = [...prev, failedJob]
-              updateLocalStorageJobs(updatedJobs)
               return updatedJobs
             })
           }
@@ -533,6 +561,7 @@ export function ResizableDashboard() {
                   ref={queuePanelRef}
                   testJobs={testJobs}
                   setTestJobs={setTestJobs}
+                  refreshTestJobs={refreshTestJobs}
                 />
               </div>
             </TabsContent>
