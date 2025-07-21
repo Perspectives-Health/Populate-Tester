@@ -86,7 +86,8 @@ export interface TestJob {
   error?: string;
   screenshot_s3_link?: string;
   include_screenshot?: boolean;
-  custom_mapping?: Record<string, any>; // Changed from string to object
+  custom_mapping?: Record<string, any>;
+  environment?: "production" | "testing";
 }
 
 class ApiService {
@@ -203,15 +204,22 @@ export async function startTestPromptJob(payload: {
   prompt: string;
   screenshot_s3_link?: string;
   include_screenshot?: boolean;
-  custom_mapping?: Record<string, any>; // Changed from prompt_data to custom_mapping
+  custom_mapping?: Record<string, any>;
+  environment?: "production" | "testing";
 }): Promise<{ job_id: string }> {
-  const url = `${currentApiBaseUrl}/internal/test-prompt`;
+  // Use different endpoints based on environment
+  const endpoint = payload.environment === "production" ? "/internal/test-prompt-prod" : "/internal/test-prompt";
+  const url = `${currentApiBaseUrl}${endpoint}`;
+  
   console.log('=== API: startTestPromptJob called ===')
+  console.log('Environment:', payload.environment || 'testing')
+  console.log('Endpoint:', endpoint)
   console.log('payload.prompt:', payload.prompt)
   console.log('payload.custom_mapping:', payload.custom_mapping)
   console.log('payload.include_screenshot:', payload.include_screenshot)
   console.log('Full payload:', payload)
   console.log('API: Sending test prompt request to backend:', payload)
+  
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

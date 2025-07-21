@@ -7,13 +7,16 @@ import { TestQueuePanel } from "@/components/test-queue-panel"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
-import { TestJob, Conversation, apiService } from "@/lib/api"
+import { TestJob, Conversation, apiService, startTestPromptJob } from "@/lib/api"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Play } from "lucide-react"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Zap } from "lucide-react"
 
 export function ResizableDashboard() {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
@@ -30,6 +33,12 @@ export function ResizableDashboard() {
   const [testJobs, setTestJobs] = useState<TestJob[]>([])
   const [editDataMode, setEditDataMode] = useState(false)
   const queuePanelRef = useRef<any>(null)
+
+  // Batch testing state
+  const [environment, setEnvironment] = useState<"production" | "testing">("testing")
+  const [batchCount, setBatchCount] = useState(1)
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false)
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 })
 
   const handleAddToQueue = async (jobData: any) => {
     console.log('handleAddToQueue called with jobData:', jobData)
@@ -54,14 +63,14 @@ export function ResizableDashboard() {
     // Add to local state
     setTestJobs(prev => [...prev, newJob])
     
-    // Also add to TestQueuePanel if it's available
-    if (queuePanelRef.current) {
-      console.log('Calling queuePanelRef.current.addToQueue')
-      await queuePanelRef.current.addToQueue(jobData)
-      console.log('queuePanelRef.current.addToQueue completed')
-    } else {
-      console.log('queuePanelRef.current is null')
-    }
+    // DISABLED: No longer calling queue panel since we make direct API calls
+    // if (queuePanelRef.current) {
+    //   console.log('Calling queuePanelRef.current.addToQueue')
+    //   await queuePanelRef.current.addToQueue(jobData)
+    //   console.log('queuePanelRef.current.addToQueue completed')
+    // } else {
+    //   console.log('queuePanelRef.current is null')
+    // }
   }
 
   const setTestResult = () => {}
@@ -142,44 +151,131 @@ export function ResizableDashboard() {
       console.log('Setting testLoading to true')
       setTestLoading(true)
 
-      // Create a new test job with the current edited values
-      const newJob = {
-        id: crypto.randomUUID(),
-        conversation_id: selectedConversation.id,
-        workflow_id: selectedConversation.workflow_id,
-        center_name: selectedConversation.center_name,
-        workflow_name: selectedConversation.workflow_name,
-        prompt: promptInput, // Use the current edited prompt
-        status: 'pending' as const,
-        timestamp: new Date().toISOString(),
-        screenshot_s3_link: selectedConversation.mapping_screenshot_s3_link,
-        include_screenshot: !!selectedConversation.mapping_screenshot_s3_link && includeScreenshot,
-        // Include the edited mapping data as custom_mapping (parse string to object)
-        custom_mapping: mapping ? JSON.parse(mapping) : undefined
+      // If batch count is 1, do single test. If > 1, do batch test
+      if (batchCount === 1) {
+        // Single test
+        const newJob = {
+          id: crypto.randomUUID(),
+          conversation_id: selectedConversation.id,
+          workflow_id: selectedConversation.workflow_id,
+          center_name: selectedConversation.center_name,
+          workflow_name: selectedConversation.workflow_name,
+          prompt: promptInput,
+          status: 'pending' as const,
+          timestamp: new Date().toISOString(),
+          screenshot_s3_link: selectedConversation.mapping_screenshot_s3_link,
+          include_screenshot: !!selectedConversation.mapping_screenshot_s3_link && includeScreenshot,
+          custom_mapping: mapping ? JSON.parse(mapping) : undefined,
+          environment: environment
+        }
+
+        console.log('=== Created newJob ===')
+        console.log('newJob.prompt:', newJob.prompt)
+        console.log('newJob.custom_mapping:', newJob.custom_mapping)
+        console.log('newJob.include_screenshot:', newJob.include_screenshot)
+        console.log('Full newJob object:', newJob)
+        
+        // Make API call directly
+        const apiPayload = {
+          conversation_id: newJob.conversation_id,
+          workflow_id: newJob.workflow_id,
+          prompt: newJob.prompt,
+          screenshot_s3_link: newJob.screenshot_s3_link,
+          include_screenshot: newJob.include_screenshot,
+          custom_mapping: newJob.custom_mapping,
+          environment: newJob.environment
+        }
+        
+        console.log('Making single API call:', apiPayload)
+        const result = await startTestPromptJob(apiPayload)
+        console.log('Single API call successful:', result)
+        
+        // Add completed job to queue for display
+        const completedJob = {
+          ...newJob,
+          id: result.job_id,
+          status: 'pending' as const
+        }
+        setTestJobs(prev => [...prev, completedJob])
+        
+      } else {
+        // Batch test
+        console.log(`Starting batch test with ${batchCount} requests`)
+        setIsBatchProcessing(true)
+        setBatchProgress({ current: 0, total: batchCount })
+        
+        for (let i = 0; i < batchCount; i++) {
+          console.log(`Creating batch job ${i + 1}/${batchCount}`)
+          
+          const newJob = {
+            id: crypto.randomUUID(),
+            conversation_id: selectedConversation.id,
+            workflow_id: selectedConversation.workflow_id,
+            center_name: selectedConversation.center_name,
+            workflow_name: selectedConversation.workflow_name,
+            prompt: promptInput,
+            status: 'pending' as const,
+            timestamp: new Date().toISOString(),
+            screenshot_s3_link: selectedConversation.mapping_screenshot_s3_link,
+            include_screenshot: !!selectedConversation.mapping_screenshot_s3_link && includeScreenshot,
+            custom_mapping: mapping ? JSON.parse(mapping) : undefined,
+            environment: environment
+          }
+
+          console.log(`Batch job ${i + 1} created:`, newJob)
+          
+          // Make API call directly
+          try {
+            const apiPayload = {
+              conversation_id: newJob.conversation_id,
+              workflow_id: newJob.workflow_id,
+              prompt: newJob.prompt,
+              screenshot_s3_link: newJob.screenshot_s3_link,
+              include_screenshot: newJob.include_screenshot,
+              custom_mapping: newJob.custom_mapping,
+              environment: newJob.environment
+            }
+            
+            console.log(`Making direct API call ${i + 1}/${batchCount}:`, apiPayload)
+            const result = await startTestPromptJob(apiPayload)
+            console.log(`API call ${i + 1} successful:`, result)
+            
+            // Add completed job to queue for display
+            const completedJob = {
+              ...newJob,
+              id: result.job_id,
+              status: 'pending' as const
+            }
+            setTestJobs(prev => [...prev, completedJob])
+            
+          } catch (error) {
+            console.error(`API call ${i + 1} failed:`, error)
+            // Add failed job to queue for display
+            const failedJob = {
+              ...newJob,
+              status: 'error' as const,
+              error: error instanceof Error ? error.message : String(error)
+            }
+            setTestJobs(prev => [...prev, failedJob])
+          }
+          
+          // Update progress
+          setBatchProgress({ current: i + 1, total: batchCount })
+          
+          // Wait 5 seconds before next job (except for the last one)
+          if (i < batchCount - 1) {
+            console.log(`Waiting 5 seconds before next batch job...`)
+            await new Promise(resolve => setTimeout(resolve, 5000))
+          }
+        }
+        
+        console.log('Batch test completed!')
+        setIsBatchProcessing(false)
+        setBatchProgress({ current: 0, total: 0 })
       }
 
-      console.log('=== Created newJob ===')
-      console.log('newJob.prompt:', newJob.prompt)
-      console.log('newJob.custom_mapping:', newJob.custom_mapping)
-      console.log('newJob.include_screenshot:', newJob.include_screenshot)
-      console.log('Full newJob object:', newJob)
-      console.log('queuePanelRef.current:', queuePanelRef.current)
-      
-      // Debug: Log the exact values being used
-      console.log('🔍 DEBUG VALUES:')
-      console.log('  promptInput:', promptInput)
-      console.log('  mapping:', mapping)
-      console.log('  mapping length:', mapping?.length)
-      console.log('  mapping trimmed:', mapping?.trim())
-      console.log('  includeScreenshot state:', includeScreenshot)
-      console.log('  selectedConversation.mapping_screenshot_s3_link:', selectedConversation.mapping_screenshot_s3_link)
-
-      // Add test to queue
-      await handleAddToQueue(newJob)
-      console.log('handleAddToQueue completed')
-
     } catch (err) {
-      console.error('Error adding test to queue:', err)
+      console.error('Error in test:', err)
     } finally {
       console.log('Setting testLoading to false')
       setTestLoading(false)
@@ -262,24 +358,62 @@ export function ResizableDashboard() {
                               style={{ height: "100%" }}
                             />
                             <div className="flex gap-2">
+                              <div className="flex-1 flex gap-2">
+                                {/* Environment Dropdown */}
+                                <Select value={environment} onValueChange={(value: "production" | "testing") => setEnvironment(value)}>
+                                  <SelectTrigger className="w-32">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="testing">Testing</SelectItem>
+                                    <SelectItem value="production">Production</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                
+                                {/* Batch Count Input */}
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  max="50"
+                                  value={batchCount}
+                                  onChange={(e) => setBatchCount(parseInt(e.target.value) || 1)}
+                                  className="w-20"
+                                  placeholder="Count"
+                                />
+                              </div>
+                              
+                              {/* Single Test Button */}
                               <Button
                                 onClick={handleTest}
-                                disabled={!promptInput.trim() || !selectedConversation || loadingPrompt}
+                                disabled={!promptInput.trim() || !selectedConversation || loadingPrompt || testLoading || isBatchProcessing || batchCount < 1}
                                 className="flex-1 h-12 text-lg neon-glow bg-emerald-600 hover:bg-emerald-700"
                                 size="lg"
                               >
-                                {testLoading ? (
+                                {testLoading || isBatchProcessing ? (
                                   <>
                                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3" />
-                                    Adding to Queue...
+                                    {batchCount > 1 && isBatchProcessing ? 
+                                      `${batchProgress.current}/${batchProgress.total}...` : 
+                                      'Adding to Queue...'
+                                    }
                                   </>
                                 ) : (
                                   <>
-                                    <Play className="h-5 w-5 mr-3" />
-                                    Test Prompt
+                                    {batchCount > 1 ? (
+                                      <>
+                                        <Zap className="h-5 w-5 mr-3" />
+                                        Test Prompt ({batchCount})
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Play className="h-5 w-5 mr-3" />
+                                        Test Prompt
+                                      </>
+                                    )}
                                   </>
                                 )}
                               </Button>
+                              
                               <Button
                                 onClick={handleClear}
                                 disabled={!promptInput.trim()}

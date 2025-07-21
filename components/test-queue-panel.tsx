@@ -67,15 +67,16 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
         }
       }
       
-      // Remove duplicates from localStorage (jobs that exist in backend)
+      // Keep all localStorage jobs (both pending and completed) for display
+      // Only remove from localStorage if they exist in backend to avoid duplicates
       const uniqueLocalStorageJobs = localStorageJobs.filter(job => !backendJobIds.has(job.id))
       
-      // Update localStorage with only unique pending jobs
+      // Update localStorage with only unique pending jobs (for future reference)
       const pendingJobs = uniqueLocalStorageJobs.filter(job => job.status === 'pending')
       localStorage.setItem("testJobs", JSON.stringify(pendingJobs))
       
-      // Combine backend jobs (completed) with unique localStorage jobs (pending)
-      const allJobs = [...completedBackendJobs, ...uniqueLocalStorageJobs]
+      // Combine backend jobs (completed) with all localStorage jobs (both pending and completed)
+      const allJobs = [...completedBackendJobs, ...localStorageJobs]
       setTestJobs(allJobs)
       
       // Set pending jobs separately - only unique localStorage jobs can be pending
@@ -156,177 +157,68 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
     console.log('processQueue called, isProcessing:', isProcessing, 'pendingJobs:', pendingJobs)
     if (isProcessing) return
     
-    console.log('Started processing queue')
+    console.log('Started processing queue for polling completed jobs')
     setIsProcessing(true)
     
     try {
-      // Only process pending jobs from localStorage (not backend jobs)
-      const jobsToProcess = pendingJobs.filter(job => job.status === 'pending')
-      console.log('Jobs to process:', jobsToProcess)
+      // Only poll for jobs that are pending and have real job IDs (from direct API calls)
+      const jobsToPoll = testJobs.filter(job => 
+        job.status === 'pending' && 
+        job.id && 
+        !job.id.startsWith('job-') // Real job IDs don't start with 'job-'
+      )
+      console.log('Jobs to poll for completion:', jobsToPoll)
       
-      for (const job of jobsToProcess) {
-        if (job.status !== 'pending') continue // Skip if job was already processed
+      for (const job of jobsToPoll) {
+        console.log('Polling for job completion:', job.id)
         
-        console.log('Processing job:', job)
         try {
-          // Start the job
-          const req = {
-            conversation_id: job.conversation_id,
-            workflow_id: job.workflow_id,
-            prompt: job.prompt,
-            screenshot_s3_link: job.screenshot_s3_link || undefined,
-            include_screenshot: job.include_screenshot || false,
-            // Include the edited mapping data if available (ensure it's an object)
-            custom_mapping: job.custom_mapping ? 
-              (typeof job.custom_mapping === 'string' ? JSON.parse(job.custom_mapping) : job.custom_mapping) : 
-              undefined,
-          }
+          const result = await getTestPromptResult(job.id)
           
-          console.log('=== Starting test prompt job ===')
-          console.log('job.prompt:', job.prompt)
-          console.log('job.custom_mapping:', job.custom_mapping)
-          console.log('job.include_screenshot:', job.include_screenshot)
-          console.log('req.prompt:', req.prompt)
-          console.log('req.custom_mapping:', req.custom_mapping)
-          console.log('req.include_screenshot:', req.include_screenshot)
-          console.log('Full request object:', req)
-          
-          const { job_id } = await startTestPromptJob(req)
-          console.log('Received job_id from backend:', job_id)
-          
-          // Update job with real job_id
-          const updatedJob = { ...job, id: job_id }
-          console.log('Updated job with real job_id:', updatedJob)
-          setTestJobs(prev => prev.map(j => 
-            j.id === job.id ? updatedJob : j
-          ))
-          
-          // Poll for completion
-          let pollCount = 0
-          const maxPolls = 60 // 5 minutes max
-          
-          while (pollCount < maxPolls) {
-            await new Promise(resolve => setTimeout(resolve, 5000)) // Wait 5 seconds
-            
-            try {
-              const result = await getTestPromptResult(job_id)
-              
-              if (result.status === 'done' || result.status === 'error') {
-                const updatedJob: TestJob = {
-                  ...job,
-                  id: job_id,
-                  status: result.status as 'done' | 'error', 
-                  result: result.result, 
-                  log_messages: result.log_messages,
-                  screenshot_url: result.screenshot_url, 
-                  error: result.error 
-                }
-                
-                setTestJobs(prev => prev.map(j => 
-                  j.id === job_id ? updatedJob : j
-                ))
-                
-                // If job is completed, post to backend
-                if (result.status === 'done') {
-                  try {
-                    await apiService.createTestJob(updatedJob)
-                    console.log('Job completed and posted to backend:', updatedJob.id)
-                  } catch (error) {
-                    console.error('Error posting completed job to backend:', error)
-                  }
-                }
-                
-                break
-              }
-            } catch (error) {
-              console.error(`Error polling job ${job_id}:`, error)
+          if (result.status === 'done' || result.status === 'error') {
+            const updatedJob: TestJob = {
+              ...job,
+              status: result.status as 'done' | 'error', 
+              result: result.result, 
+              log_messages: result.log_messages,
+              screenshot_url: result.screenshot_url, 
+              error: result.error 
             }
             
-            pollCount++
-          }
-          
-          // If max polls reached, mark as error
-          if (pollCount >= maxPolls) {
-            const errorJob: TestJob = { 
-              ...job, 
-              id: job_id, 
-              status: 'error', 
-              error: 'Job timed out after 5 minutes' 
-            }
             setTestJobs(prev => prev.map(j => 
-              j.id === job_id ? errorJob : j
+              j.id === job.id ? updatedJob : j
             ))
+            
+            console.log('Job completed:', updatedJob.id, 'Status:', updatedJob.status)
           }
-          
         } catch (error) {
-          console.error(`Error processing job ${job.id}:`, error)
-          const errorJob: TestJob = { 
-            ...job, 
-            status: 'error', 
-            error: error instanceof Error ? error.message : String(error) 
-          }
-          setTestJobs(prev => prev.map(j => 
-            j.id === job.id ? errorJob : j
-          ))
+          console.error(`Error polling job ${job.id}:`, error)
         }
       }
+      
+    } catch (error) {
+      console.error('Error in processQueue:', error)
     } finally {
       setIsProcessing(false)
     }
   }
 
-  // Single useEffect to handle queue processing
+  // Single useEffect to handle queue processing - RE-ENABLED for polling completed jobs
   useEffect(() => {
     console.log('Queue processing useEffect triggered, pendingJobs.length:', pendingJobs.length, 'isProcessing:', isProcessing)
     if (pendingJobs.length > 0 && !isProcessing) {
-      console.log('Triggering processQueue')
+      console.log('Triggering processQueue for polling completed jobs')
       processQueue()
     } else {
       console.log('Not triggering processQueue - pendingJobs.length:', pendingJobs.length, 'isProcessing:', isProcessing)
     }
   }, [pendingJobs.length, isProcessing])
 
-  // Handle adding new job to queue
+  // Handle adding new job to queue - DISABLED since we're making direct API calls
   const handleAddToQueue = async (jobData: any) => {
-    try {
-      console.log('=== handleAddToQueue called ===')
-      console.log('jobData:', jobData)
-      console.log('jobData.prompt:', jobData.prompt)
-      console.log('jobData.custom_mapping:', jobData.custom_mapping)
-      console.log('jobData.include_screenshot:', jobData.include_screenshot)
-      
-      // Create a new job entry
-      const newJob: TestJob = {
-        id: `job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        conversation_id: jobData.conversation_id,
-        workflow_id: jobData.workflow_id,
-        center_name: jobData.center_name,
-        workflow_name: jobData.workflow_name,
-        prompt: jobData.prompt,
-        status: 'pending',
-        timestamp: new Date().toISOString(),
-        screenshot_s3_link: jobData.screenshot_s3_link,
-        include_screenshot: jobData.include_screenshot,
-        custom_mapping: jobData.custom_mapping ? 
-          (typeof jobData.custom_mapping === 'string' ? JSON.parse(jobData.custom_mapping) : jobData.custom_mapping) : 
-          undefined
-      }
-      
-      console.log('=== Created newJob in TestQueuePanel ===')
-      console.log('newJob.prompt:', newJob.prompt)
-      console.log('newJob.custom_mapping:', newJob.custom_mapping)
-      console.log('newJob.include_screenshot:', newJob.include_screenshot)
-      console.log('Full newJob object:', newJob)
-      
-      // Add to local state (will be saved to localStorage via useEffect)
-      setTestJobs(prev => [...prev, newJob])
-      
-      // Start polling for this job
-      setPollingJobs(prev => new Set(prev).add(newJob.id))
-      
-    } catch (error) {
-      console.error('Error adding job to queue:', error)
-    }
+    console.log('=== handleAddToQueue DISABLED - direct API calls are used instead ===')
+    // This function is disabled since we're making direct API calls from the dashboard
+    return
   }
 
   // Expose addToQueue method to parent
