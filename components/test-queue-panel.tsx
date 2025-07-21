@@ -370,7 +370,7 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
   }
 
   const viewJob = (jobId: string) => {
-    router.push(`/test-results/${jobId}`)
+    window.open(`/test-results/${jobId}`, '_blank')
   }
 
   const getStatusIcon = (status: string) => {
