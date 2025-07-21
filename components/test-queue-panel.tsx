@@ -422,21 +422,22 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
               {testJobs.map((job, index) => (
-                <Card key={index} className="border-l-4 border-l-blue-500">
+                <Card key={index} className="border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {getStatusIcon(job.status)}
                         {getStatusBadge(job.status)}
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         {job.status === 'done' && (
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => viewJob(job.id)}
+                            className="h-8 w-8 p-0"
                           >
                             <ExternalLink className="h-4 w-4" />
                           </Button>
@@ -445,35 +446,38 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
                           size="sm"
                           variant="ghost"
                           onClick={() => removeJob(job.id)}
+                          className="h-8 w-8 p-0 text-red-400 hover:text-red-300"
                         >
-                          Remove
+                          <XCircle className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium">Job ID:</span>
-                        <span className="text-muted-foreground font-mono">{job.id}</span>
+                  <CardContent className="pt-0">
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">ID:</span>
+                        <span className="font-mono text-xs truncate max-w-[120px]" title={job.id}>
+                          {job.id}
+                        </span>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium">Center:</span>
-                        <span className="text-muted-foreground">{job.center_name || 'Unknown'}</span>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Center:</span>
+                        <span className="font-medium">{job.center_name || 'N/A'}</span>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium">Workflow:</span>
-                        <span className="text-muted-foreground">{job.workflow_name || job.workflow_id || 'Unknown'}</span>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Workflow:</span>
+                        <span className="font-medium">{job.workflow_name || 'N/A'}</span>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium">Timestamp:</span>
-                        <span className="text-muted-foreground">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Time:</span>
+                        <span className="text-xs">
                           {new Date(job.timestamp).toLocaleString()}
                         </span>
                       </div>
                       {job.error && (
-                        <div className="text-sm text-red-500">
-                          <span className="font-medium">Error:</span> {job.error}
+                        <div className="text-red-400 text-xs mt-2 p-2 bg-red-900/20 rounded">
+                          Error: {job.error}
                         </div>
                       )}
                     </div>

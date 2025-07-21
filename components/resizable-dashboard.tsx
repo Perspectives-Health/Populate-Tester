@@ -12,6 +12,8 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Play } from "lucide-react"
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism'
 
 export function ResizableDashboard() {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
@@ -24,6 +26,7 @@ export function ResizableDashboard() {
   const [includeScreenshot, setIncludeScreenshot] = useState(true)
   const [testLoading, setTestLoading] = useState(false)
   const [testJobs, setTestJobs] = useState<TestJob[]>([])
+  const [editDataMode, setEditDataMode] = useState(false)
   const queuePanelRef = useRef<any>(null)
 
   const handleAddToQueue = async (jobData: any) => {
@@ -238,14 +241,62 @@ export function ResizableDashboard() {
                       <Card className="h-full">
                         <CardContent className="p-4 h-full">
                           <div className="flex flex-col h-full">
-                            <label className="heading-3-neon mb-1">Prompt Data (Mapping + Transcript)</label>
-                            <Textarea
-                              placeholder={loadingPrompt ? "Loading data..." : "Select a conversation to see the data"}
-                              value={promptData}
-                              onChange={(e) => setPromptData(e.target.value)}
-                              className="flex-1 min-h-0 resize-none rounded-lg border border-slate-700 bg-slate-900/50 text-base custom-scrollbar"
-                              style={{ height: "100%" }}
-                            />
+                            <label className="heading-3-neon mb-1 flex items-center justify-between">
+                              Prompt Data (Mapping + Transcript)
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="ml-2 px-2 py-1 text-xs"
+                                onClick={() => setEditDataMode((v) => !v)}
+                              >
+                                {editDataMode ? 'Done' : 'Edit'}
+                              </Button>
+                            </label>
+                            {editDataMode ? (
+                              <Textarea
+                                placeholder={loadingPrompt ? "Loading data..." : "Select a conversation to see the data"}
+                                value={promptData}
+                                onChange={(e) => setPromptData(e.target.value)}
+                                className="flex-1 min-h-0 resize-none rounded-lg border border-slate-700 bg-slate-900/50 text-base custom-scrollbar font-mono"
+                                style={{ height: "100%" }}
+                              />
+                            ) : (
+                              <div className="flex-1 overflow-auto rounded-lg border border-slate-700 bg-slate-900/50 p-4 custom-scrollbar">
+                                {promptData ? (
+                                  <SyntaxHighlighter
+                                    language="json"
+                                    style={vscDarkPlus}
+                                    customStyle={{
+                                      background: 'transparent',
+                                      margin: 0,
+                                      padding: 0,
+                                      fontSize: '14px',
+                                      lineHeight: '1.5',
+                                      whiteSpace: 'pre-wrap',
+                                      wordBreak: 'break-word',
+                                      overflowWrap: 'break-word'
+                                    }}
+                                    wrapLines={true}
+                                    lineProps={{ style: { whiteSpace: 'pre-wrap', wordBreak: 'break-word' } }}
+                                  >
+                                    {(() => {
+                                      try {
+                                        // Try to parse and pretty-print the JSON
+                                        const parsed = JSON.parse(promptData)
+                                        return JSON.stringify(parsed, null, 2)
+                                      } catch {
+                                        // If not valid JSON, display as-is
+                                        return promptData
+                                      }
+                                    })()}
+                                  </SyntaxHighlighter>
+                                ) : (
+                                  <div className="text-slate-400 text-sm">
+                                    {loadingPrompt ? "Loading data..." : "Select a conversation to see the data"}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
