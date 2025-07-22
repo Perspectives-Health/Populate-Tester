@@ -17,6 +17,7 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Zap } from "lucide-react"
+import { SyncDbButton } from "@/components/sync-db-button"
 
 export function ResizableDashboard() {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
@@ -441,19 +442,22 @@ export function ResizableDashboard() {
           <h1 className="heading-1-neon">LLM Testing Dashboard</h1>
           <p className="text-slate-400">Advanced prompt testing with production conversations</p>
         </div>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
-          <TabsList className="flex gap-4 bg-slate-900 px-2 py-1">
-            <TabsTrigger value="conversations" className="data-[state=active]:bg-slate-800 px-6 py-3 text-base font-medium">
-              Conversations
-            </TabsTrigger>
-            <TabsTrigger value="testing" className="data-[state=active]:bg-slate-800 px-6 py-3 text-base font-medium">
-              Testing
-            </TabsTrigger>
-            <TabsTrigger value="test-queue" className="data-[state=active]:bg-slate-800 px-6 py-3 text-base font-medium">
-              Test Queue
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex items-center gap-4">
+          <SyncDbButton />
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
+            <TabsList className="flex gap-4 bg-slate-900 px-2 py-1">
+              <TabsTrigger value="conversations" className="data-[state=active]:bg-slate-800 px-6 py-3 text-base font-medium">
+                Conversations
+              </TabsTrigger>
+              <TabsTrigger value="testing" className="data-[state=active]:bg-slate-800 px-6 py-3 text-base font-medium">
+                Testing
+              </TabsTrigger>
+              <TabsTrigger value="test-queue" className="data-[state=active]:bg-slate-800 px-6 py-3 text-base font-medium">
+                Test Queue
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </div>
 
       {/* Tabbed Content */}
