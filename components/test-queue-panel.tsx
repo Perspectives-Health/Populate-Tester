@@ -157,7 +157,15 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
             
             // Update the job in the backend
             try {
-              await apiService.createTestJob(updatedJob)
+              await apiService.createTestJob({
+                id: updatedJob.id,
+                conversation_id: updatedJob.conversation_id,
+                workflow_id: updatedJob.workflow_id,
+                center_name: updatedJob.center_name || 'Unknown',
+                workflow_name: updatedJob.workflow_name || 'Unknown',
+                prompt: updatedJob.prompt,
+                screenshot_s3_link: updatedJob.screenshot_s3_link
+              })
             } catch (error) {
               console.error(`Error updating job ${job.id} in backend:`, error)
             }
@@ -223,11 +231,8 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
 
   const removeJob = async (jobId: string) => {
     try {
-      // If job is completed, delete from backend
-      const job = testJobs.find(j => j.id === jobId)
-      if (job && job.status === 'done') {
-        await apiService.deleteTestJob(jobId)
-      }
+      // Delete from backend regardless of status
+      await apiService.deleteTestJob(jobId)
       
       // Remove from local state
       setTestJobs(prev => prev.filter(job => job.id !== jobId))
