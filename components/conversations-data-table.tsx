@@ -39,17 +39,62 @@ interface PaginationState {
 
 export function ConversationsDataTable({ 
   onSelect, 
-  onConversationsLoad 
+  conversations: externalConversations,
+  loading: externalLoading,
+  onRefresh
 }: { 
   onSelect: (conversation: Conversation | null) => void
-  onConversationsLoad?: (conversations: Conversation[]) => void
+  conversations?: Conversation[]
+  loading?: boolean
+  onRefresh?: () => Promise<void>
 }) {
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [loading, setLoading] = useState(true)
+  const [internalConversations, setInternalConversations] = useState<Conversation[]>([])
+  const [internalLoading, setInternalLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0)
+
+  // Use external props if provided, otherwise use internal state
+  const conversations = externalConversations || internalConversations
+  const loading = externalLoading !== undefined ? externalLoading : internalLoading
+
+  // Debug: Log when conversations change
+  useEffect(() => {
+    console.log('Conversations changed:', conversations.length, 'items')
+  }, [conversations.length])
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    // Only access localStorage on the client side
+    if (typeof window !== 'undefined') {
+      try {
+        const savedSelectedId = localStorage.getItem("conversations_selectedId")
+        if (savedSelectedId) {
+          console.log('Initializing selectedId with saved state:', savedSelectedId)
+          return savedSelectedId
+        }
+      } catch (error) {
+        console.error('Error parsing saved selectedId for initialization:', error)
+      }
+    }
+    return null
+  })
   const [env, setEnv] = useState<"production" | "testing">("testing")
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ field: null, direction: 'asc' })
+  const [sortConfig, setSortConfig] = useState<SortConfig>(() => {
+    // Only access localStorage on the client side
+    if (typeof window !== 'undefined') {
+      try {
+        const savedSortConfig = localStorage.getItem("conversations_sortConfig")
+        if (savedSortConfig) {
+          const parsed = JSON.parse(savedSortConfig)
+          if (parsed.field && parsed.direction) {
+            console.log('Initializing sortConfig with saved state:', parsed)
+            return parsed
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing saved sortConfig for initialization:', error)
+      }
+    }
+    return { field: null, direction: 'asc' }
+  })
   const [audioDurations, setAudioDurations] = useState<Record<string, number>>({})
   const [loadingDurations, setLoadingDurations] = useState<Set<string>>(new Set())
   const [isSorting, setIsSorting] = useState(false)
@@ -58,16 +103,46 @@ export function ConversationsDataTable({
     workflow: string[]
     dateRange: { start: string; end: string } | null
     duration: { min: number; max: number | null } | null
-  }>({
-    center: [],
-    workflow: [],
-    dateRange: null,
-    duration: null
+  }>(() => {
+    // Only access localStorage on the client side
+    if (typeof window !== 'undefined') {
+      try {
+        const savedFilters = localStorage.getItem("conversations_filters")
+        if (savedFilters) {
+          const parsed = JSON.parse(savedFilters)
+          console.log('Initializing filters with saved state:', parsed)
+          return parsed
+        }
+      } catch (error) {
+        console.error('Error parsing saved filters for initialization:', error)
+      }
+    }
+    return {
+      center: [],
+      workflow: [],
+      dateRange: null,
+      duration: null
+    }
   })
-  const [pagination, setPagination] = useState<PaginationState>({
-    currentPage: 1,
-    pageSize: 25, // Show 25 items per page
-    totalItems: 0
+  const [pagination, setPagination] = useState<PaginationState>(() => {
+    // Only access localStorage on the client side
+    if (typeof window !== 'undefined') {
+      try {
+        const savedPagination = localStorage.getItem("conversations_pagination")
+        if (savedPagination) {
+          const parsed = JSON.parse(savedPagination)
+          console.log('Initializing pagination with saved state:', parsed)
+          return parsed
+        }
+      } catch (error) {
+        console.error('Error parsing saved pagination for initialization:', error)
+      }
+    }
+    return {
+      currentPage: 1,
+      pageSize: 25, // Show 25 items per page
+      totalItems: 0
+    }
   })
   
   // Add a type for the audio dialog state that includes s3_link and extracted_info as optional fields
@@ -79,34 +154,55 @@ export function ConversationsDataTable({
 
   // Load state from localStorage on mount
   useEffect(() => {
-    try {
-      // Load sort configuration
-      const savedSortConfig = localStorage.getItem("conversations_sortConfig")
-      if (savedSortConfig) {
-        try {
-          const parsed = JSON.parse(savedSortConfig)
-          if (parsed.field && parsed.direction) {
-            setSortConfig(parsed)
-          }
-        } catch (error) {
-          console.error('Error parsing saved sort config:', error)
-        }
+    // Use setTimeout to ensure this runs after component is fully mounted
+    const timer = setTimeout(() => {
+      try {
+        // All state is now initialized with saved values, no need to load here
+      } catch (error) {
+        console.error('Error loading conversations state:', error)
       }
-    } catch (error) {
-      console.error('Error loading conversations state:', error)
-    }
+    }, 100) // Small delay to ensure component is fully mounted
+
+    return () => clearTimeout(timer)
   }, [])
+
+  // Filters are now initialized with saved state, no need for additional loading
 
   // Save sort configuration to localStorage
   useEffect(() => {
     localStorage.setItem("conversations_sortConfig", JSON.stringify(sortConfig))
   }, [sortConfig])
 
+  // Save filters to localStorage
   useEffect(() => {
-    setApiBaseUrl(env === "production" ? prodUrl : testUrl)
-    loadConversations()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [env])
+    console.log('Saving filters:', filters)
+    localStorage.setItem("conversations_filters", JSON.stringify(filters))
+  }, [filters])
+
+  // Save pagination to localStorage
+  useEffect(() => {
+    localStorage.setItem("conversations_pagination", JSON.stringify(pagination))
+  }, [pagination])
+
+  // Save selected conversation to localStorage
+  useEffect(() => {
+    if (selectedId) {
+      localStorage.setItem("conversations_selectedId", selectedId)
+    } else {
+      localStorage.removeItem("conversations_selectedId")
+    }
+  }, [selectedId])
+
+  // Load conversations only once on mount or when cache is stale
+  useEffect(() => {
+    const now = Date.now()
+    const cacheAge = now - lastFetchTime
+    const isStale = cacheAge > 5 * 60 * 1000 // 5 minutes
+    
+    if (conversations.length === 0 || isStale) {
+      loadConversations()
+    }
+  }, []) // Only run on mount
 
   // Define getFieldValue before using it in useMemo
   const getFieldValue = useCallback((conversation: Conversation, field: SortField | null) => {
@@ -135,6 +231,7 @@ export function ConversationsDataTable({
 
   // Apply filters to conversations
   const filteredConversations = useMemo(() => {
+    console.log('Applying filters:', filters, 'to', conversations.length, 'conversations')
     return conversations.filter(conversation => {
       // Filter by center
       if (filters.center.length > 0 && !filters.center.includes(conversation.center_name)) {
@@ -213,13 +310,13 @@ export function ConversationsDataTable({
     return sortedConversations.slice(startIndex, endIndex)
   }, [sortedConversations, pagination.currentPage, pagination.pageSize])
 
-  // Update total items when conversations change
+  // Update total items when filtered conversations change
   useEffect(() => {
     setPagination(prev => ({
       ...prev,
-      totalItems: conversations.length
+      totalItems: filteredConversations.length
     }))
-  }, [conversations.length])
+  }, [filteredConversations.length])
 
   // Load audio durations only for visible conversations (lazy loading)
   useEffect(() => {
@@ -258,16 +355,21 @@ export function ConversationsDataTable({
   }, [paginatedConversations])
 
   const loadConversations = async () => {
+    // If external props are provided, don't load internally
+    if (externalConversations !== undefined) {
+      return
+    }
+    
     try {
-      setLoading(true)
+      setInternalLoading(true)
       setError(null)
       const data = await apiService.getConversations()
-      setConversations(data)
-      onConversationsLoad?.(data)
+      setInternalConversations(data)
+      setLastFetchTime(Date.now())
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load conversations")
     } finally {
-      setLoading(false)
+      setInternalLoading(false)
     }
   }
 
@@ -809,9 +911,9 @@ export function ConversationsDataTable({
               </Button>
             )}
 
-            <Button onClick={loadConversations} variant="outline" size="sm">
-              Refresh
-            </Button>
+                                  <Button onClick={onRefresh || loadConversations} variant="outline" size="sm">
+                        Refresh
+                      </Button>
           </div>
         </div>
         {/* Filter Summary */}
@@ -967,7 +1069,7 @@ export function ConversationsDataTable({
             </div>
             
             {/* Pagination Controls */}
-            {totalPages > 1 && (
+            {filteredConversations.length > pagination.pageSize && (
               <div className="flex items-center justify-between px-2 py-4 border-t">
                 <div className="text-sm text-muted-foreground">
                   Showing {startItem}-{endItem} of {pagination.totalItems} conversations

@@ -22,6 +22,7 @@ export function ResizableDashboard() {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [lastConversationsFetch, setLastConversationsFetch] = useState<number>(0)
   const [activeTab, setActiveTab] = useState("conversations")
   const [promptInput, setPromptInput] = useState("")
   const [promptData, setPromptData] = useState("")
@@ -45,6 +46,113 @@ export function ResizableDashboard() {
   useEffect(() => {
     setApiEnvironment(environment)
   }, [environment])
+
+  // Save dashboard state to localStorage
+  useEffect(() => {
+    localStorage.setItem("dashboard_activeTab", activeTab)
+  }, [activeTab])
+
+  useEffect(() => {
+    localStorage.setItem("dashboard_promptInput", promptInput)
+  }, [promptInput])
+
+  useEffect(() => {
+    localStorage.setItem("dashboard_mapping", mapping)
+  }, [mapping])
+
+  useEffect(() => {
+    localStorage.setItem("dashboard_transcript", transcript)
+  }, [transcript])
+
+  useEffect(() => {
+    localStorage.setItem("dashboard_includeScreenshot", JSON.stringify(includeScreenshot))
+  }, [includeScreenshot])
+
+  useEffect(() => {
+    localStorage.setItem("dashboard_environment", environment)
+  }, [environment])
+
+  useEffect(() => {
+    localStorage.setItem("dashboard_batchCount", batchCount.toString())
+  }, [batchCount])
+
+  // Load conversations with caching
+  const loadConversations = async () => {
+    const now = Date.now()
+    const cacheAge = now - lastConversationsFetch
+    const isStale = cacheAge > 5 * 60 * 1000 // 5 minutes
+    
+    if (conversations.length === 0 || isStale) {
+      try {
+        setIsLoading(true)
+        const data = await apiService.getConversations()
+        setConversations(data)
+        setLastConversationsFetch(now)
+      } catch (error) {
+        console.error('Error loading conversations:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+  }
+
+  // Load state from localStorage on mount
+  useEffect(() => {
+    try {
+      // Load active tab
+      const savedActiveTab = localStorage.getItem("dashboard_activeTab")
+      if (savedActiveTab) {
+        setActiveTab(savedActiveTab)
+      }
+
+      // Load prompt input
+      const savedPromptInput = localStorage.getItem("dashboard_promptInput")
+      if (savedPromptInput) {
+        setPromptInput(savedPromptInput)
+      }
+
+      // Load mapping
+      const savedMapping = localStorage.getItem("dashboard_mapping")
+      if (savedMapping) {
+        setMapping(savedMapping)
+      }
+
+      // Load transcript
+      const savedTranscript = localStorage.getItem("dashboard_transcript")
+      if (savedTranscript) {
+        setTranscript(savedTranscript)
+      }
+
+      // Load include screenshot setting
+      const savedIncludeScreenshot = localStorage.getItem("dashboard_includeScreenshot")
+      if (savedIncludeScreenshot) {
+        setIncludeScreenshot(JSON.parse(savedIncludeScreenshot))
+      }
+
+      // Load environment
+      const savedEnvironment = localStorage.getItem("dashboard_environment")
+      if (savedEnvironment) {
+        setEnvironment(savedEnvironment as "production" | "testing")
+      }
+
+      // Load batch count
+      const savedBatchCount = localStorage.getItem("dashboard_batchCount")
+      if (savedBatchCount) {
+        const count = parseInt(savedBatchCount)
+        if (!isNaN(count)) {
+          setBatchCount(count)
+          setBatchCountInput(count.toString())
+        }
+      }
+    } catch (error) {
+      console.error('Error loading dashboard state:', error)
+    }
+  }, [])
+
+  // Load conversations on mount
+  useEffect(() => {
+    loadConversations()
+  }, [])
 
   const handleAddToQueue = async (jobData: any) => {
     // Create a new job entry
@@ -357,7 +465,9 @@ export function ResizableDashboard() {
               <div className="h-full p-6">
                 <ConversationsDataTable
                   onSelect={setSelectedConversation}
-                  onConversationsLoad={setConversations}
+                  conversations={conversations}
+                  loading={isLoading}
+                  onRefresh={loadConversations}
                 />
               </div>
             </TabsContent>
