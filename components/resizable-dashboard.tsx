@@ -22,6 +22,7 @@ export function ResizableDashboard() {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [lastConversationsFetch, setLastConversationsFetch] = useState<number>(0)
   const [activeTab, setActiveTab] = useState("conversations")
   const [promptInput, setPromptInput] = useState("")
   const [promptData, setPromptData] = useState("")
@@ -45,6 +46,31 @@ export function ResizableDashboard() {
   useEffect(() => {
     setApiEnvironment(environment)
   }, [environment])
+
+  // Load conversations with caching
+  const loadConversations = async () => {
+    const now = Date.now()
+    const cacheAge = now - lastConversationsFetch
+    const isStale = cacheAge > 5 * 60 * 1000 // 5 minutes
+    
+    if (conversations.length === 0 || isStale) {
+      try {
+        setIsLoading(true)
+        const data = await apiService.getConversations()
+        setConversations(data)
+        setLastConversationsFetch(now)
+      } catch (error) {
+        console.error('Error loading conversations:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+  }
+
+  // Load conversations on mount
+  useEffect(() => {
+    loadConversations()
+  }, [])
 
   const handleAddToQueue = async (jobData: any) => {
     // Create a new job entry
@@ -357,7 +383,9 @@ export function ResizableDashboard() {
               <div className="h-full p-6">
                 <ConversationsDataTable
                   onSelect={setSelectedConversation}
-                  onConversationsLoad={setConversations}
+                  conversations={conversations}
+                  loading={isLoading}
+                  onRefresh={loadConversations}
                 />
               </div>
             </TabsContent>

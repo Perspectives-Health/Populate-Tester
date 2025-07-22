@@ -39,14 +39,23 @@ interface PaginationState {
 
 export function ConversationsDataTable({ 
   onSelect, 
-  onConversationsLoad 
+  conversations: externalConversations,
+  loading: externalLoading,
+  onRefresh
 }: { 
   onSelect: (conversation: Conversation | null) => void
-  onConversationsLoad?: (conversations: Conversation[]) => void
+  conversations?: Conversation[]
+  loading?: boolean
+  onRefresh?: () => Promise<void>
 }) {
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [loading, setLoading] = useState(true)
+  const [internalConversations, setInternalConversations] = useState<Conversation[]>([])
+  const [internalLoading, setInternalLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0)
+
+  // Use external props if provided, otherwise use internal state
+  const conversations = externalConversations || internalConversations
+  const loading = externalLoading !== undefined ? externalLoading : internalLoading
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [env, setEnv] = useState<"production" | "testing">("testing")
   const [sortConfig, setSortConfig] = useState<SortConfig>({ field: null, direction: 'asc' })
@@ -102,11 +111,16 @@ export function ConversationsDataTable({
     localStorage.setItem("conversations_sortConfig", JSON.stringify(sortConfig))
   }, [sortConfig])
 
+  // Load conversations only once on mount or when cache is stale
   useEffect(() => {
-    setApiBaseUrl(env === "production" ? prodUrl : testUrl)
-    loadConversations()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [env])
+    const now = Date.now()
+    const cacheAge = now - lastFetchTime
+    const isStale = cacheAge > 5 * 60 * 1000 // 5 minutes
+    
+    if (conversations.length === 0 || isStale) {
+      loadConversations()
+    }
+  }, []) // Only run on mount
 
   // Define getFieldValue before using it in useMemo
   const getFieldValue = useCallback((conversation: Conversation, field: SortField | null) => {
@@ -258,16 +272,21 @@ export function ConversationsDataTable({
   }, [paginatedConversations])
 
   const loadConversations = async () => {
+    // If external props are provided, don't load internally
+    if (externalConversations !== undefined) {
+      return
+    }
+    
     try {
-      setLoading(true)
+      setInternalLoading(true)
       setError(null)
       const data = await apiService.getConversations()
-      setConversations(data)
-      onConversationsLoad?.(data)
+      setInternalConversations(data)
+      setLastFetchTime(Date.now())
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load conversations")
     } finally {
-      setLoading(false)
+      setInternalLoading(false)
     }
   }
 
@@ -809,9 +828,9 @@ export function ConversationsDataTable({
               </Button>
             )}
 
-            <Button onClick={loadConversations} variant="outline" size="sm">
-              Refresh
-            </Button>
+                                  <Button onClick={onRefresh || loadConversations} variant="outline" size="sm">
+                        Refresh
+                      </Button>
           </div>
         </div>
         {/* Filter Summary */}
