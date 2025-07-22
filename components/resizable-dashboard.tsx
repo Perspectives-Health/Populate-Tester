@@ -7,7 +7,7 @@ import { TestQueuePanel } from "@/components/test-queue-panel"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
-import { TestJob, Conversation, apiService, startTestPromptJob } from "@/lib/api"
+import { TestJob, Conversation, apiService, startTestPromptJob, setEnvironment as setApiEnvironment } from "@/lib/api"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
@@ -39,6 +39,11 @@ export function ResizableDashboard() {
   const [batchCount, setBatchCount] = useState(1)
   const [isBatchProcessing, setIsBatchProcessing] = useState(false)
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 })
+
+  // Update API environment when environment state changes
+  useEffect(() => {
+    setApiEnvironment(environment)
+  }, [environment])
 
   const handleAddToQueue = async (jobData: any) => {
     // Create a new job entry
@@ -184,8 +189,7 @@ export function ResizableDashboard() {
           timestamp: new Date().toISOString(),
           screenshot_s3_link: selectedConversation.mapping_screenshot_s3_link,
           include_screenshot: !!selectedConversation.mapping_screenshot_s3_link && includeScreenshot,
-          custom_mapping: mapping ? JSON.parse(mapping) : undefined,
-          environment: environment
+          custom_mapping: mapping ? JSON.parse(mapping) : undefined
         }
 
         // Make API call directly
@@ -195,8 +199,7 @@ export function ResizableDashboard() {
           prompt: newJob.prompt,
           screenshot_s3_link: newJob.screenshot_s3_link,
           include_screenshot: newJob.include_screenshot,
-          custom_mapping: newJob.custom_mapping,
-          environment: newJob.environment
+          custom_mapping: newJob.custom_mapping
         }
         
         const result = await startTestPromptJob(apiPayload)
@@ -234,8 +237,7 @@ export function ResizableDashboard() {
             timestamp: new Date().toISOString(),
             screenshot_s3_link: selectedConversation.mapping_screenshot_s3_link,
             include_screenshot: !!selectedConversation.mapping_screenshot_s3_link && includeScreenshot,
-            custom_mapping: mapping ? JSON.parse(mapping) : undefined,
-            environment: environment
+            custom_mapping: mapping ? JSON.parse(mapping) : undefined
           }
 
           // Make API call directly
@@ -246,8 +248,7 @@ export function ResizableDashboard() {
               prompt: newJob.prompt,
               screenshot_s3_link: newJob.screenshot_s3_link,
               include_screenshot: newJob.include_screenshot,
-              custom_mapping: newJob.custom_mapping,
-              environment: newJob.environment
+              custom_mapping: newJob.custom_mapping
             }
             
             const result = await startTestPromptJob(apiPayload)

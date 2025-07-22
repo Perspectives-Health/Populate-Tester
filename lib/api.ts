@@ -5,11 +5,25 @@
 const PROD_API_BASE_URL = process.env.NEXT_PUBLIC_PROD_API_BASE_URL || 'http://localhost:5001';
 const TEST_API_BASE_URL = process.env.NEXT_PUBLIC_TEST_API_BASE_URL || 'http://localhost:5001';
 
-// Default to production, but allow toggling for ALL APIs
-let currentApiBaseUrl = PROD_API_BASE_URL;
+// Default to testing environment
+let currentApiBaseUrl = TEST_API_BASE_URL;
 
 export function setApiBaseUrl(url: string) {
   currentApiBaseUrl = url;
+}
+
+// Function to set environment and update API base URL
+export function setEnvironment(environment: "production" | "testing") {
+  if (environment === "production") {
+    currentApiBaseUrl = PROD_API_BASE_URL;
+  } else {
+    currentApiBaseUrl = TEST_API_BASE_URL;
+  }
+}
+
+// Function to get current environment
+export function getCurrentEnvironment(): "production" | "testing" {
+  return currentApiBaseUrl === PROD_API_BASE_URL ? "production" : "testing";
 }
 
 export interface Conversation {
@@ -87,7 +101,6 @@ export interface TestJob {
   screenshot_s3_link?: string;
   include_screenshot?: boolean;
   custom_mapping?: Record<string, any>;
-  environment?: "production" | "testing";
 }
 
 class ApiService {
@@ -205,10 +218,9 @@ export async function startTestPromptJob(payload: {
   screenshot_s3_link?: string;
   include_screenshot?: boolean;
   custom_mapping?: Record<string, any>;
-  environment?: "production" | "testing";
 }): Promise<{ job_id: string }> {
-  // Use different endpoints based on environment
-  const endpoint = payload.environment === "production" ? "/internal/test-prompt-prod" : "/internal/test-prompt";
+  // Use the same endpoint for both environments, only base URL changes
+  const endpoint = "/internal/test-prompt";
   const url = `${currentApiBaseUrl}${endpoint}`;
   
   const res = await fetch(url, {
