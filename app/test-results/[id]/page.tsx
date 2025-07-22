@@ -140,10 +140,6 @@ export default function TestResultsPage() {
       <header className="border-b border-slate-800 px-6 py-4 neon-accent">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => router.back()}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
             <div>
               <h1 className="heading-1-neon">Test Results</h1>
               <p className="text-slate-400">Test ID: {testId}</p>

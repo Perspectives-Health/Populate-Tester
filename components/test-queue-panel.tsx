@@ -54,20 +54,19 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
       // Set all jobs from backend
       setTestJobs(backendJobs)
       
-      // Set pending jobs for polling
+      // Only set pending jobs for polling (not completed ones)
       const pendingJobs = backendJobs.filter(job => job.status === 'pending')
       setPendingJobs(pendingJobs)
       
-      // Start polling for pending jobs
-      pendingJobs.forEach((job: TestJob) => {
-        setPollingJobs(prev => new Set(prev).add(job.id))
-      })
+      // Clear any existing polling state
+      setPollingJobs(new Set())
       
     } catch (error) {
       console.error('Error loading test jobs:', error)
       // Fallback to empty state
       setTestJobs([])
       setPendingJobs([])
+      setPollingJobs(new Set())
     } finally {
       setLoading(false)
     }
@@ -119,6 +118,8 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
     if (isProcessing) return
     
     try {
+      setIsProcessing(true)
+      
       // Only poll for jobs that are pending and have real job IDs (from direct API calls)
       const jobsToPoll = testJobs.filter(job => 
         job.status === 'pending' && 
@@ -126,7 +127,19 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
         !job.id.startsWith('job-') // Real job IDs don't start with 'job-'
       )
       
+      if (jobsToPoll.length === 0) {
+        setIsProcessing(false)
+        return
+      }
+      
       for (const job of jobsToPoll) {
+        // Skip if we're already polling this job
+        if (pollingJobs.has(job.id)) {
+          continue
+        }
+        
+        // Add to polling set to prevent duplicate polls
+        setPollingJobs(prev => new Set(prev).add(job.id))
         
         try {
           const result = await getTestPromptResult(job.id)
@@ -153,12 +166,32 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
               j.id === job.id ? updatedJob : j
             ))
             
-            // Update pending jobs list
+            // Remove from pending jobs list
             setPendingJobs(prev => prev.filter(j => j.id !== job.id))
             
+            // Remove from polling set
+            setPollingJobs(prev => {
+              const newSet = new Set(prev)
+              newSet.delete(job.id)
+              return newSet
+            })
+            
+          } else {
+            // Job is still pending, remove from polling set to allow re-polling later
+            setPollingJobs(prev => {
+              const newSet = new Set(prev)
+              newSet.delete(job.id)
+              return newSet
+            })
           }
         } catch (error) {
           console.error(`Error polling job ${job.id}:`, error)
+          // Remove from polling set on error
+          setPollingJobs(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(job.id)
+            return newSet
+          })
         }
       }
       
