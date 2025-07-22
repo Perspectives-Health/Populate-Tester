@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { apiService, Conversation } from "@/lib/api"
 import { startTestPromptJob, getTestPromptResult } from "@/lib/api"
 import { Switch } from "@/components/ui/switch"
+import { PromptTesterSkeleton } from "@/components/ui/loading-skeleton"
 
 interface PromptTesterPanelProps {
   selectedConversation: Conversation | null
@@ -182,6 +183,11 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
     setPromptInput("")
     setCustomPrompt(null)
     localStorage.removeItem("customPrompt")
+  }
+
+  // Show skeleton while loading prompt data
+  if (loadingPrompt && selectedConversation) {
+    return <PromptTesterSkeleton />
   }
 
   return (
