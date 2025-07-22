@@ -37,6 +37,7 @@ export function ResizableDashboard() {
   // Batch testing state
   const [environment, setEnvironment] = useState<"production" | "testing">("testing")
   const [batchCount, setBatchCount] = useState(1)
+  const [batchCountInput, setBatchCountInput] = useState("1")
   const [isBatchProcessing, setIsBatchProcessing] = useState(false)
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 })
 
@@ -399,8 +400,25 @@ export function ResizableDashboard() {
                                   type="number"
                                   min="1"
                                   max="50"
-                                  value={batchCount}
-                                  onChange={(e) => setBatchCount(parseInt(e.target.value) || 1)}
+                                  value={batchCountInput}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    setBatchCountInput(value);
+                                    if (value === '') {
+                                      setBatchCount(1);
+                                    } else {
+                                      const numValue = parseInt(value);
+                                      if (!isNaN(numValue) && numValue >= 1) {
+                                        setBatchCount(numValue);
+                                      }
+                                    }
+                                  }}
+                                  onBlur={() => {
+                                    if (batchCountInput === '' || parseInt(batchCountInput) < 1) {
+                                      setBatchCountInput("1");
+                                      setBatchCount(1);
+                                    }
+                                  }}
                                   className="w-20"
                                   placeholder="Count"
                                 />
