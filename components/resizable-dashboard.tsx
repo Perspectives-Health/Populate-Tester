@@ -47,6 +47,35 @@ export function ResizableDashboard() {
     setApiEnvironment(environment)
   }, [environment])
 
+  // Save dashboard state to localStorage
+  useEffect(() => {
+    localStorage.setItem("dashboard_activeTab", activeTab)
+  }, [activeTab])
+
+  useEffect(() => {
+    localStorage.setItem("dashboard_promptInput", promptInput)
+  }, [promptInput])
+
+  useEffect(() => {
+    localStorage.setItem("dashboard_mapping", mapping)
+  }, [mapping])
+
+  useEffect(() => {
+    localStorage.setItem("dashboard_transcript", transcript)
+  }, [transcript])
+
+  useEffect(() => {
+    localStorage.setItem("dashboard_includeScreenshot", JSON.stringify(includeScreenshot))
+  }, [includeScreenshot])
+
+  useEffect(() => {
+    localStorage.setItem("dashboard_environment", environment)
+  }, [environment])
+
+  useEffect(() => {
+    localStorage.setItem("dashboard_batchCount", batchCount.toString())
+  }, [batchCount])
+
   // Load conversations with caching
   const loadConversations = async () => {
     const now = Date.now()
@@ -66,6 +95,59 @@ export function ResizableDashboard() {
       }
     }
   }
+
+  // Load state from localStorage on mount
+  useEffect(() => {
+    try {
+      // Load active tab
+      const savedActiveTab = localStorage.getItem("dashboard_activeTab")
+      if (savedActiveTab) {
+        setActiveTab(savedActiveTab)
+      }
+
+      // Load prompt input
+      const savedPromptInput = localStorage.getItem("dashboard_promptInput")
+      if (savedPromptInput) {
+        setPromptInput(savedPromptInput)
+      }
+
+      // Load mapping
+      const savedMapping = localStorage.getItem("dashboard_mapping")
+      if (savedMapping) {
+        setMapping(savedMapping)
+      }
+
+      // Load transcript
+      const savedTranscript = localStorage.getItem("dashboard_transcript")
+      if (savedTranscript) {
+        setTranscript(savedTranscript)
+      }
+
+      // Load include screenshot setting
+      const savedIncludeScreenshot = localStorage.getItem("dashboard_includeScreenshot")
+      if (savedIncludeScreenshot) {
+        setIncludeScreenshot(JSON.parse(savedIncludeScreenshot))
+      }
+
+      // Load environment
+      const savedEnvironment = localStorage.getItem("dashboard_environment")
+      if (savedEnvironment) {
+        setEnvironment(savedEnvironment as "production" | "testing")
+      }
+
+      // Load batch count
+      const savedBatchCount = localStorage.getItem("dashboard_batchCount")
+      if (savedBatchCount) {
+        const count = parseInt(savedBatchCount)
+        if (!isNaN(count)) {
+          setBatchCount(count)
+          setBatchCountInput(count.toString())
+        }
+      }
+    } catch (error) {
+      console.error('Error loading dashboard state:', error)
+    }
+  }, [])
 
   // Load conversations on mount
   useEffect(() => {
