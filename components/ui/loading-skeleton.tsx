@@ -60,6 +60,16 @@ export function ConversationRowSkeleton() {
   )
 }
 
+// Duration cell skeleton
+export function DurationCellSkeleton() {
+  return (
+    <div className="flex items-center space-x-2">
+      <Skeleton className="h-8 w-8 rounded" />
+      <Skeleton className="h-4 w-12" />
+    </div>
+  )
+}
+
 // Table header skeleton
 export function TableHeaderSkeleton() {
   return (

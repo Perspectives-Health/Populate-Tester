@@ -16,7 +16,7 @@ import { apiService, Conversation, setApiBaseUrl } from "@/lib/api"
 import { formatDistanceToNow } from "date-fns"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react"
-import { ConversationRowSkeleton, TableHeaderSkeleton, PaginationSkeleton } from "@/components/ui/loading-skeleton"
+import { ConversationRowSkeleton, TableHeaderSkeleton, PaginationSkeleton, DurationCellSkeleton } from "@/components/ui/loading-skeleton"
 
 type SortField = 'center_name' | 'workflow_name' | 'timestamp' | 'duration'
 type SortDirection = 'asc' | 'desc'
@@ -46,6 +46,7 @@ export function ConversationsDataTable({
   const [env, setEnv] = useState<"production" | "testing">("testing")
   const [sortConfig, setSortConfig] = useState<SortConfig>({ field: 'timestamp', direction: 'desc' })
   const [audioDurations, setAudioDurations] = useState<Record<string, number>>({})
+  const [loadingDurations, setLoadingDurations] = useState<Set<string>>(new Set())
   const [pagination, setPagination] = useState<PaginationState>({
     currentPage: 1,
     pageSize: 25, // Show 25 items per page
@@ -158,6 +159,21 @@ export function ConversationsDataTable({
     }
   }, [paginatedConversations, audioDurations])
 
+  // Clear loading states when conversations change
+  useEffect(() => {
+    const currentConversationIds = new Set(paginatedConversations.map(conv => conv.id))
+    setLoadingDurations(prev => {
+      const newSet = new Set(prev)
+      // Remove loading states for conversations that are no longer visible
+      for (const loadingId of newSet) {
+        if (!currentConversationIds.has(loadingId)) {
+          newSet.delete(loadingId)
+        }
+      }
+      return newSet
+    })
+  }, [paginatedConversations])
+
   const loadConversations = async () => {
     try {
       setLoading(true)
@@ -209,6 +225,9 @@ export function ConversationsDataTable({
       return null
     }
 
+    // Mark this duration as loading
+    setLoadingDurations(prev => new Set([...prev, conversation.id]))
+
     try {
       const audio = new Audio(conversation.s3_link)
       
@@ -216,20 +235,40 @@ export function ConversationsDataTable({
         audio.addEventListener('loadedmetadata', () => {
           const duration = audio.duration
           setAudioDurations(prev => ({ ...prev, [conversation.id]: duration }))
+          setLoadingDurations(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(conversation.id)
+            return newSet
+          })
           resolve(duration)
         })
         
         audio.addEventListener('error', () => {
+          setLoadingDurations(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(conversation.id)
+            return newSet
+          })
           resolve(0)
         })
         
         // Set a timeout in case the audio doesn't load
         setTimeout(() => {
+          setLoadingDurations(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(conversation.id)
+            return newSet
+          })
           resolve(0)
-        }, 5000)
+        }, 3000)
       })
     } catch (error) {
       console.error('Error loading audio duration:', error)
+      setLoadingDurations(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(conversation.id)
+        return newSet
+      })
       return 0
     }
   }
@@ -446,9 +485,13 @@ export function ConversationsDataTable({
                         </div>
                       </TableCell>
                       <TableCell className="min-w-[80px]">
-                        <div className="text-sm text-muted-foreground">
-                          {formatDuration(audioDurations[conversation.id] || conversation.metadata?.duration)}
-                        </div>
+                        {loadingDurations.has(conversation.id) ? (
+                          <DurationCellSkeleton />
+                        ) : (
+                          <div className="text-sm text-muted-foreground">
+                            {formatDuration(audioDurations[conversation.id] || conversation.metadata?.duration)}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="min-w-[80px]">
                         <Button 
