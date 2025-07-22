@@ -310,13 +310,13 @@ export function ConversationsDataTable({
     return sortedConversations.slice(startIndex, endIndex)
   }, [sortedConversations, pagination.currentPage, pagination.pageSize])
 
-  // Update total items when conversations change
+  // Update total items when filtered conversations change
   useEffect(() => {
     setPagination(prev => ({
       ...prev,
-      totalItems: conversations.length
+      totalItems: filteredConversations.length
     }))
-  }, [conversations.length])
+  }, [filteredConversations.length])
 
   // Load audio durations only for visible conversations (lazy loading)
   useEffect(() => {
@@ -1069,7 +1069,7 @@ export function ConversationsDataTable({
             </div>
             
             {/* Pagination Controls */}
-            {totalPages > 1 && (
+            {filteredConversations.length > pagination.pageSize && (
               <div className="flex items-center justify-between px-2 py-4 border-t">
                 <div className="text-sm text-muted-foreground">
                   Showing {startItem}-{endItem} of {pagination.totalItems} conversations
