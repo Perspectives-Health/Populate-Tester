@@ -188,7 +188,15 @@ class ApiService {
     return this.request<TestJob[]>('/internal/test-jobs');
   }
 
-  async createTestJob(job: TestJob): Promise<TestJob> {
+  async createTestJob(job: {
+    id: string;
+    conversation_id: string;
+    workflow_id: string;
+    center_name: string;
+    workflow_name: string;
+    prompt: string;
+    screenshot_s3_link?: string;
+  }): Promise<TestJob> {
     return this.request<TestJob>('/internal/test-job', {
       method: 'POST',
       body: JSON.stringify(job),
