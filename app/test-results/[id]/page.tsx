@@ -159,7 +159,7 @@ export default function TestResultsPage() {
       {/* Two Panel Layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel - Test Results */}
-        <div className="w-1/2 border-r border-slate-800">
+        <div className="flex-1 border-r border-slate-800">
           <div className="h-full flex flex-col">
             <div className="p-4 border-b border-slate-800 neon-accent">
               <div className="flex items-center justify-between">
@@ -219,7 +219,7 @@ export default function TestResultsPage() {
                       </div>
                     </CardHeader>
                     <CardContent className="pt-0 space-y-3">
-                      <div className="rounded-lg border border-slate-700 mt-2 bg-slate-800 w-3/5">
+                      <div className="rounded-lg border border-slate-700 mt-2 bg-slate-800 w-full">
                         {(() => {
                           const formattedData = formatNumberedResults(testResult.result)
                           
@@ -319,7 +319,7 @@ export default function TestResultsPage() {
         </div>
 
         {/* Right Panel - Screenshot */}
-        <div className="w-1/2">
+        <div className="flex-1">
           {testResult.screenshot_url ? (
             <div className="h-full w-full flex flex-col min-w-0 min-h-0">
               <TransformWrapper
