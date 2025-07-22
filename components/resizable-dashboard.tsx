@@ -212,8 +212,16 @@ export function ResizableDashboard() {
           status: 'pending' as const
         }
         
-        // Post the job to the backend for persistence
-        await apiService.createTestJob(completedJob)
+        // Post the job to the backend for persistence (only required fields)
+        await apiService.createTestJob({
+          id: completedJob.id,
+          conversation_id: completedJob.conversation_id,
+          workflow_id: completedJob.workflow_id,
+          center_name: completedJob.center_name,
+          workflow_name: completedJob.workflow_name,
+          prompt: completedJob.prompt,
+          screenshot_s3_link: completedJob.screenshot_s3_link
+        })
         
         // Add to local state for display
         setTestJobs(prev => {
@@ -261,8 +269,16 @@ export function ResizableDashboard() {
               status: 'pending' as const
             }
             
-            // Post the job to the backend for persistence
-            await apiService.createTestJob(completedJob)
+            // Post the job to the backend for persistence (only required fields)
+            await apiService.createTestJob({
+              id: completedJob.id,
+              conversation_id: completedJob.conversation_id,
+              workflow_id: completedJob.workflow_id,
+              center_name: completedJob.center_name,
+              workflow_name: completedJob.workflow_name,
+              prompt: completedJob.prompt,
+              screenshot_s3_link: completedJob.screenshot_s3_link
+            })
             
             // Add to local state for display
             setTestJobs(prev => {
@@ -278,9 +294,7 @@ export function ResizableDashboard() {
               error: error instanceof Error ? error.message : String(error)
             }
             
-            // Post the failed job to the backend for persistence
-            await apiService.createTestJob(failedJob)
-            
+            // Add failed job to local state for display
             setTestJobs(prev => {
               const updatedJobs = [...prev, failedJob]
               return updatedJobs
