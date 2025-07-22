@@ -100,7 +100,7 @@ export interface TestJob {
   error?: string;
   screenshot_s3_link?: string;
   include_screenshot?: boolean;
-  custom_mapping?: Record<string, any>;
+  custom_mapping?: Record<string, any> | null;
 }
 
 class ApiService {
@@ -217,7 +217,7 @@ export async function startTestPromptJob(payload: {
   prompt: string;
   screenshot_s3_link?: string;
   include_screenshot?: boolean;
-  custom_mapping?: Record<string, any>;
+  custom_mapping?: Record<string, any> | null;
 }): Promise<{ job_id: string }> {
   // Use the same endpoint for both environments, only base URL changes
   const endpoint = "/internal/test-prompt";

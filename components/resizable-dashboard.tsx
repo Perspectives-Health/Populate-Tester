@@ -190,7 +190,7 @@ export function ResizableDashboard() {
           timestamp: new Date().toISOString(),
           screenshot_s3_link: selectedConversation.mapping_screenshot_s3_link,
           include_screenshot: !!selectedConversation.mapping_screenshot_s3_link && includeScreenshot,
-          custom_mapping: mapping ? JSON.parse(mapping) : undefined
+          custom_mapping: mapping && mapping.trim() ? JSON.parse(mapping) : null
         }
 
         // Make API call directly
@@ -238,7 +238,7 @@ export function ResizableDashboard() {
             timestamp: new Date().toISOString(),
             screenshot_s3_link: selectedConversation.mapping_screenshot_s3_link,
             include_screenshot: !!selectedConversation.mapping_screenshot_s3_link && includeScreenshot,
-            custom_mapping: mapping ? JSON.parse(mapping) : undefined
+            custom_mapping: mapping && mapping.trim() ? JSON.parse(mapping) : null
           }
 
           // Make API call directly
