@@ -399,7 +399,7 @@ export function ResizableDashboard() {
                                 <Input
                                   type="number"
                                   min="1"
-                                  max="50"
+                                  max="1000"
                                   value={batchCountInput}
                                   onChange={(e) => {
                                     const value = e.target.value;

@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Clock, CheckCircle, XCircle, ExternalLink } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { apiService, TestJob, startTestPromptJob, getTestPromptResult } from "@/lib/api"
+import { JobCardSkeleton } from "@/components/ui/loading-skeleton"
 
 interface TestQueuePanelProps {
   selectedConversation: any
@@ -291,15 +292,17 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
         <CardHeader>
           <div className="flex items-center justify-between">
             <h2 className="heading-2-neon">Test Queue</h2>
-            <Button onClick={refreshTestJobs || loadTestJobs} variant="outline" size="sm">
-              Refresh
-            </Button>
+            <div className="h-8 w-20 bg-slate-700/50 animate-pulse rounded" />
           </div>
         </CardHeader>
-        <CardContent className="flex-1">
-          <div className="flex items-center justify-center py-8">
-            <div className="text-muted-foreground">Loading test jobs...</div>
-          </div>
+        <CardContent className="flex-1 overflow-hidden">
+          <ScrollArea className="h-full">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <JobCardSkeleton key={index} />
+              ))}
+            </div>
+          </ScrollArea>
         </CardContent>
       </Card>
     )

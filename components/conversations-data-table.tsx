@@ -16,6 +16,7 @@ import { apiService, Conversation, setApiBaseUrl } from "@/lib/api"
 import { formatDistanceToNow } from "date-fns"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react"
+import { ConversationRowSkeleton, TableHeaderSkeleton, PaginationSkeleton } from "@/components/ui/loading-skeleton"
 
 type SortField = 'center_name' | 'workflow_name' | 'timestamp' | 'duration'
 type SortDirection = 'asc' | 'desc'
@@ -287,13 +288,26 @@ export function ConversationsDataTable({
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Conversations</CardTitle>
+      <Card className="h-full flex flex-col">
+        <CardHeader className="flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="h-6 w-48 bg-slate-700/50 animate-pulse rounded" />
+            <div className="h-8 w-20 bg-slate-700/50 animate-pulse rounded" />
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <div className="text-muted-foreground">Loading conversations...</div>
+        <CardContent className="flex-1 overflow-hidden">
+          <div className="h-full flex flex-col">
+            <div className="rounded-md border overflow-x-auto custom-scrollbar flex-1">
+              <Table>
+                <TableHeaderSkeleton />
+                <TableBody>
+                  {Array.from({ length: 10 }).map((_, index) => (
+                    <ConversationRowSkeleton key={index} />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <PaginationSkeleton />
           </div>
         </CardContent>
       </Card>
