@@ -70,10 +70,14 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
 
   // Load custom prompt from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem("customPrompt")
-    if (saved) {
-      setCustomPrompt(saved)
-      setPromptInput(saved)
+    try {
+      const saved = localStorage.getItem("customPrompt")
+      if (saved) {
+        setCustomPrompt(saved)
+        setPromptInput(saved)
+      }
+    } catch (error) {
+      console.error('Error loading custom prompt from localStorage:', error)
     }
   }, [])
 
@@ -128,8 +132,13 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
   }, [selectedConversation])
 
   const handleSavePrompt = () => {
-    localStorage.setItem("customPrompt", promptInput)
-    setCustomPrompt(promptInput)
+    try {
+      localStorage.setItem("customPrompt", promptInput)
+      setCustomPrompt(promptInput)
+    } catch (error) {
+      console.error('Error saving custom prompt to localStorage:', error)
+      // Could show a toast notification here
+    }
   }
 
   const handleRefreshPrompt = () => {
@@ -143,6 +152,7 @@ export function PromptTesterPanel({ selectedConversation, isLoading, setTestResu
   }
 
   const handleTest = async () => {
+    console.log('🔍🔍🔍 PROMPT-TESTER-PANEL handleTest CALLED 🔍🔍🔍')
     if (!promptInput.trim() || !selectedConversation) return
     
     try {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import {
   Table,
   TableBody,
@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { apiService, Conversation, setApiBaseUrl } from "@/lib/api"
 import { formatDistanceToNow } from "date-fns"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { ChevronUp, ChevronDown } from "lucide-react"
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react"
 
 type SortField = 'center_name' | 'workflow_name' | 'timestamp' | 'duration'
 type SortDirection = 'asc' | 'desc'
@@ -23,6 +23,12 @@ type SortDirection = 'asc' | 'desc'
 interface SortConfig {
   field: SortField
   direction: SortDirection
+}
+
+interface PaginationState {
+  currentPage: number
+  pageSize: number
+  totalItems: number
 }
 
 export function ConversationsDataTable({ 
@@ -39,6 +45,11 @@ export function ConversationsDataTable({
   const [env, setEnv] = useState<"production" | "testing">("testing")
   const [sortConfig, setSortConfig] = useState<SortConfig>({ field: 'timestamp', direction: 'desc' })
   const [audioDurations, setAudioDurations] = useState<Record<string, number>>({})
+  const [pagination, setPagination] = useState<PaginationState>({
+    currentPage: 1,
+    pageSize: 25, // Show 25 items per page
+    totalItems: 0
+  })
   
   // Add a type for the audio dialog state that includes s3_link and extracted_info as optional fields
   const [audioDialog, setAudioDialog] = useState<{ open: boolean; conversation: (Conversation & { s3_link?: string; extracted_info?: string }) | null }>({ open: false, conversation: null });
@@ -67,8 +78,6 @@ export function ConversationsDataTable({
     }
   }, [])
 
-
-
   // Save sort configuration to localStorage
   useEffect(() => {
     localStorage.setItem("conversations_sortConfig", JSON.stringify(sortConfig))
@@ -80,26 +89,73 @@ export function ConversationsDataTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [env])
 
-  // Load audio durations when conversations change
-  useEffect(() => {
-    const loadDurations = async () => {
-      const conversationsWithAudio = conversations.filter(conv => conv.s3_link)
+  // Define getFieldValue before using it in useMemo
+  const getFieldValue = useCallback((conversation: Conversation, field: SortField) => {
+    switch (field) {
+      case 'center_name':
+        return conversation.center_name
+      case 'workflow_name':
+        return conversation.workflow_name
+      case 'timestamp':
+        return conversation.timestamp
+      case 'duration':
+        return audioDurations[conversation.id] || conversation.metadata?.duration || 0
+      default:
+        return ''
+    }
+  }, [audioDurations])
+
+  // Memoized sorted conversations to prevent unnecessary re-sorting
+  const sortedConversations = useMemo(() => {
+    return conversations.sort((a, b) => {
+      const aValue = getFieldValue(a, sortConfig.field)
+      const bValue = getFieldValue(b, sortConfig.field)
       
-      for (const conversation of conversationsWithAudio) {
+      let comparison = 0
+      
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        comparison = aValue.localeCompare(bValue)
+      } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+        comparison = aValue - bValue
+      } else {
+        comparison = String(aValue).localeCompare(String(bValue))
+      }
+      
+      return sortConfig.direction === 'asc' ? comparison : -comparison
+    })
+  }, [conversations, sortConfig, getFieldValue])
+
+  // Memoized paginated conversations
+  const paginatedConversations = useMemo(() => {
+    const startIndex = (pagination.currentPage - 1) * pagination.pageSize
+    const endIndex = startIndex + pagination.pageSize
+    return sortedConversations.slice(startIndex, endIndex)
+  }, [sortedConversations, pagination.currentPage, pagination.pageSize])
+
+  // Update total items when conversations change
+  useEffect(() => {
+    setPagination(prev => ({
+      ...prev,
+      totalItems: conversations.length
+    }))
+  }, [conversations.length])
+
+  // Load audio durations only for visible conversations (lazy loading)
+  useEffect(() => {
+    const loadVisibleDurations = async () => {
+      const visibleConversationsWithAudio = paginatedConversations.filter(conv => conv.s3_link)
+      
+      for (const conversation of visibleConversationsWithAudio) {
         if (!audioDurations[conversation.id]) {
           await getAudioDuration(conversation)
         }
       }
     }
 
-    if (conversations.length > 0) {
-      loadDurations()
+    if (paginatedConversations.length > 0) {
+      loadVisibleDurations()
     }
-  }, [conversations])
-
-  // Check if all durations are loaded
-  const allDurationsLoaded = conversations.length > 0 && 
-    conversations.filter(conv => conv.s3_link).every(conv => audioDurations[conv.id])
+  }, [paginatedConversations, audioDurations])
 
   const loadConversations = async () => {
     try {
@@ -115,67 +171,33 @@ export function ConversationsDataTable({
     }
   }
 
-  const getFieldValue = (conversation: Conversation, field: SortField) => {
-    switch (field) {
-      case 'center_name':
-        return conversation.center_name
-      case 'workflow_name':
-        return conversation.workflow_name
-      case 'timestamp':
-        return conversation.timestamp
-      case 'duration':
-        return audioDurations[conversation.id] || conversation.metadata?.duration || 0
-      default:
-        return ''
-    }
-  }
-
-  const handleSort = (field: SortField) => {
+  const handleSort = useCallback((field: SortField) => {
     setSortConfig(prev => ({
       field,
       direction: prev.field === field && prev.direction === 'asc' ? 'desc' : 'asc'
     }))
-  }
+  }, [])
 
-  const getSortIcon = (field: SortField) => {
+  const getSortIcon = useCallback((field: SortField) => {
     if (sortConfig.field !== field) return null
     return sortConfig.direction === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
-  }
+  }, [sortConfig])
 
-  const filteredConversations = conversations
-
-  const sortedConversations = filteredConversations.sort((a, b) => {
-    const aValue = getFieldValue(a, sortConfig.field)
-    const bValue = getFieldValue(b, sortConfig.field)
-    
-    let comparison = 0
-    
-    if (typeof aValue === 'string' && typeof bValue === 'string') {
-      comparison = aValue.localeCompare(bValue)
-    } else if (typeof aValue === 'number' && typeof bValue === 'number') {
-      comparison = aValue - bValue
-    } else {
-      comparison = String(aValue).localeCompare(String(bValue))
-    }
-    
-    return sortConfig.direction === 'asc' ? comparison : -comparison
-  })
-
-  const formatTimestamp = (timestamp: string) => {
+  const formatTimestamp = useCallback((timestamp: string) => {
     try {
       const date = new Date(timestamp)
       return formatDistanceToNow(date, { addSuffix: true })
     } catch {
       return "Unknown"
     }
-  }
+  }, [])
 
-  const formatDuration = (duration?: number) => {
+  const formatDuration = useCallback((duration?: number) => {
     if (!duration) return "N/A"
     const minutes = Math.floor(duration / 60)
     const seconds = Math.floor(duration % 60) // Round to remove milliseconds
     return `${minutes}:${seconds.toString().padStart(2, '0')}`
-  }
+  }, [])
 
   const getAudioDuration = async (conversation: Conversation) => {
     if (audioDurations[conversation.id]) {
@@ -211,12 +233,12 @@ export function ConversationsDataTable({
     }
   }
 
-  const truncateText = (text: string, maxLength: number = 100) => {
+  const truncateText = useCallback((text: string, maxLength: number = 100) => {
     if (!text) return "No data"
     return text.length > maxLength ? `${text.substring(0, maxLength)}...` : text
-  }
+  }, [])
 
-  const handleRowClick = (conversation: Conversation) => {
+  const handleRowClick = useCallback((conversation: Conversation) => {
     if (selectedId === conversation.id) {
       setSelectedId(null)
       onSelect(null)
@@ -224,7 +246,7 @@ export function ConversationsDataTable({
       setSelectedId(conversation.id)
       onSelect(conversation)
     }
-  }
+  }, [selectedId, onSelect])
 
   // When opening the dialog, fetch the full details if not present
   const handleAudioDetails = async (conversation: Conversation) => {
@@ -241,6 +263,27 @@ export function ConversationsDataTable({
       setAudioDialog({ open: true, conversation });
     }
   }
+
+  // Pagination handlers
+  const handlePageChange = useCallback((newPage: number) => {
+    setPagination(prev => ({
+      ...prev,
+      currentPage: newPage
+    }))
+  }, [])
+
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    setPagination(prev => ({
+      ...prev,
+      pageSize: newPageSize,
+      currentPage: 1 // Reset to first page when changing page size
+    }))
+  }, [])
+
+  // Calculate pagination info
+  const totalPages = Math.ceil(pagination.totalItems / pagination.pageSize)
+  const startItem = (pagination.currentPage - 1) * pagination.pageSize + 1
+  const endItem = Math.min(pagination.currentPage * pagination.pageSize, pagination.totalItems)
 
   if (loading) {
     return (
@@ -279,15 +322,15 @@ export function ConversationsDataTable({
     <Card className="h-full flex flex-col">
       <CardHeader className="flex-shrink-0">
         <div className="flex items-center justify-between">
-          <CardTitle className="heading-2-neon">Conversations ({conversations.length})</CardTitle>
+          <CardTitle className="heading-2-neon">
+            Conversations ({pagination.totalItems})
+          </CardTitle>
           <div className="flex items-center gap-2">
             <Button onClick={loadConversations} variant="outline" size="sm">
               Refresh
             </Button>
           </div>
         </div>
-        
-
       </CardHeader>
       <CardContent className="flex-1 overflow-hidden">
         <Dialog open={audioDialog.open} onOpenChange={open => setAudioDialog({ open, conversation: open ? audioDialog.conversation : null })}>
@@ -320,8 +363,8 @@ export function ConversationsDataTable({
             No conversations found.
           </div>
         ) : (
-          <div className="h-full overflow-auto custom-scrollbar">
-            <div className="rounded-md border overflow-x-auto custom-scrollbar">
+          <div className="h-full flex flex-col">
+            <div className="rounded-md border overflow-x-auto custom-scrollbar flex-1">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -361,12 +404,11 @@ export function ConversationsDataTable({
                         {getSortIcon('duration')}
                       </div>
                     </TableHead>
-
                     <TableHead className="min-w-[80px]">Audio Details</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedConversations.map((conversation) => (
+                  {paginatedConversations.map((conversation) => (
                     <TableRow
                       key={conversation.id}
                       className={`cursor-pointer hover:bg-slate-800/50 transition-colors ${
@@ -394,7 +436,6 @@ export function ConversationsDataTable({
                           {formatDuration(audioDurations[conversation.id] || conversation.metadata?.duration)}
                         </div>
                       </TableCell>
-
                       <TableCell className="min-w-[80px]">
                         <Button 
                           size="sm" 
@@ -412,6 +453,65 @@ export function ConversationsDataTable({
                 </TableBody>
               </Table>
             </div>
+            
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-2 py-4 border-t">
+                <div className="text-sm text-muted-foreground">
+                  Showing {startItem}-{endItem} of {pagination.totalItems} conversations
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(pagination.currentPage - 1)}
+                    disabled={pagination.currentPage <= 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      const page = Math.max(1, Math.min(totalPages - 4, pagination.currentPage - 2)) + i
+                      if (page > totalPages) return null
+                      return (
+                        <Button
+                          key={page}
+                          variant={page === pagination.currentPage ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handlePageChange(page)}
+                          className="w-8 h-8 p-0"
+                        >
+                          {page}
+                        </Button>
+                      )
+                    })}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(pagination.currentPage + 1)}
+                    disabled={pagination.currentPage >= totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Page size:</span>
+                  <select
+                    value={pagination.pageSize}
+                    onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                    className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </CardContent>

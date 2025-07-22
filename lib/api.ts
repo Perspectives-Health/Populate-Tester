@@ -5,11 +5,25 @@
 const PROD_API_BASE_URL = process.env.NEXT_PUBLIC_PROD_API_BASE_URL || 'http://localhost:5001';
 const TEST_API_BASE_URL = process.env.NEXT_PUBLIC_TEST_API_BASE_URL || 'http://localhost:5001';
 
-// Default to production, but allow toggling for ALL APIs
-let currentApiBaseUrl = PROD_API_BASE_URL;
+// Default to testing environment
+let currentApiBaseUrl = TEST_API_BASE_URL;
 
 export function setApiBaseUrl(url: string) {
   currentApiBaseUrl = url;
+}
+
+// Function to set environment and update API base URL
+export function setEnvironment(environment: "production" | "testing") {
+  if (environment === "production") {
+    currentApiBaseUrl = PROD_API_BASE_URL;
+  } else {
+    currentApiBaseUrl = TEST_API_BASE_URL;
+  }
+}
+
+// Function to get current environment
+export function getCurrentEnvironment(): "production" | "testing" {
+  return currentApiBaseUrl === PROD_API_BASE_URL ? "production" : "testing";
 }
 
 export interface Conversation {
@@ -69,6 +83,24 @@ export interface UserSession {
 
 export interface UserSessionsResponse {
   sessions: UserSession[];
+}
+
+export interface TestJob {
+  id: string;
+  conversation_id: string;
+  workflow_id: string;
+  center_name?: string;
+  workflow_name?: string;
+  prompt: string;
+  status: 'pending' | 'done' | 'error';
+  timestamp: string;
+  result?: any;
+  log_messages?: string[];
+  screenshot_url?: string;
+  error?: string;
+  screenshot_s3_link?: string;
+  include_screenshot?: boolean;
+  custom_mapping?: Record<string, any>;
 }
 
 class ApiService {
@@ -150,6 +182,30 @@ class ApiService {
       body: JSON.stringify({ user_id: userId }),
     });
   }
+
+  // Test job methods (NEW - to replace localStorage)
+  async getTestJobs(): Promise<TestJob[]> {
+    return this.request<TestJob[]>('/internal/test-jobs');
+  }
+
+  async createTestJob(job: TestJob): Promise<TestJob> {
+    return this.request<TestJob>('/internal/test-job', {
+      method: 'POST',
+      body: JSON.stringify(job),
+    });
+  }
+
+  async deleteTestJob(id: string): Promise<{ success: boolean; message: string }> {
+    return this.request<{ success: boolean; message: string }>(`/internal/test-jobs/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async clearAllTestJobs(): Promise<{ success: boolean; message: string; deleted_count: number }> {
+    return this.request<{ success: boolean; message: string; deleted_count: number }>('/internal/test-jobs/clear-all', {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const apiService = new ApiService(); 
@@ -161,9 +217,12 @@ export async function startTestPromptJob(payload: {
   prompt: string;
   screenshot_s3_link?: string;
   include_screenshot?: boolean;
+  custom_mapping?: Record<string, any>;
 }): Promise<{ job_id: string }> {
-  const url = `${currentApiBaseUrl}/internal/test-prompt`;
-  console.log('API: Sending test prompt request to backend:', payload)
+  // Use the same endpoint for both environments, only base URL changes
+  const endpoint = "/internal/test-prompt";
+  const url = `${currentApiBaseUrl}${endpoint}`;
+  
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -177,7 +236,6 @@ export async function startTestPromptJob(payload: {
   }
   
   const result = await res.json()
-  console.log('API: Test prompt request successful:', result)
   return result;
 }
 
