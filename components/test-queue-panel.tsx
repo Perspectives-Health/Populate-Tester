@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Clock, CheckCircle, XCircle, ExternalLink } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { apiService, TestJob, startTestPromptJob, getTestPromptResult } from "@/lib/api"
@@ -27,6 +28,16 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
   const [pollingJobs, setPollingJobs] = useState<Set<string>>(new Set())
   const [isProcessing, setIsProcessing] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [pollingInterval, setPollingInterval] = useState(() => {
+    // Load polling interval from localStorage on mount
+    try {
+      const saved = localStorage.getItem("pollingInterval")
+      return saved ? parseInt(saved) : 5000
+    } catch (error) {
+      console.error('Error loading polling interval from localStorage:', error)
+      return 5000
+    }
+  })
   const router = useRouter()
 
   // Use external state if provided, otherwise use internal state
@@ -37,6 +48,15 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
   useEffect(() => {
     loadTestJobs()
   }, [])
+
+  // Save polling interval to localStorage when it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem("pollingInterval", pollingInterval.toString())
+    } catch (error) {
+      console.error('Error saving polling interval to localStorage:', error)
+    }
+  }, [pollingInterval])
 
   const loadTestJobs = async () => {
     try {
@@ -218,6 +238,19 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
     }
   }, [pendingJobs.length, isProcessing])
 
+  // Interval-based polling for pending jobs
+  useEffect(() => {
+    if (pendingJobs.length === 0) return
+
+    const interval = setInterval(() => {
+      if (pendingJobs.length > 0 && !isProcessing) {
+        processQueue()
+      }
+    }, pollingInterval)
+
+    return () => clearInterval(interval)
+  }, [pendingJobs.length, isProcessing, pollingInterval])
+
   // Handle adding new job to queue - DISABLED since we're making direct API calls
   const handleAddToQueue = async (jobData: any) => {
     // This function is disabled since we're making direct API calls from the dashboard
@@ -319,6 +352,27 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
         <div className="flex items-center justify-between">
           <h2 className="heading-2-neon">Test Queue ({testJobs.length})</h2>
           <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400">Poll:</span>
+              <Select value={pollingInterval.toString()} onValueChange={(value) => setPollingInterval(parseInt(value))}>
+                <SelectTrigger className="w-24 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1000">1s</SelectItem>
+                  <SelectItem value="2000">2s</SelectItem>
+                  <SelectItem value="5000">5s</SelectItem>
+                  <SelectItem value="10000">10s</SelectItem>
+                  <SelectItem value="30000">30s</SelectItem>
+                </SelectContent>
+              </Select>
+              {pendingJobs.length > 0 && (
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-xs text-green-400">{pendingJobs.length} pending</span>
+                </div>
+              )}
+            </div>
             <Button onClick={refreshTestJobs || loadTestJobs} variant="outline" size="sm">
               Refresh
             </Button>
