@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, forwardRef, useImperativeHandle } from "react"
+import { useState, useEffect, forwardRef, useImperativeHandle, useRef } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -32,12 +32,13 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
     // Load polling interval from localStorage on mount
     try {
       const saved = localStorage.getItem("pollingInterval")
-      return saved ? parseInt(saved) : 5000
+      return saved ? parseInt(saved) : 10000 // Default to 10 seconds
     } catch (error) {
       console.error('Error loading polling interval from localStorage:', error)
-      return 5000
+      return 10000 // Default to 10 seconds
     }
   })
+  const lastPollTimeRef = useRef<number>(0)
   const router = useRouter()
 
   // Use external state if provided, otherwise use internal state
@@ -136,10 +137,24 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
 
   // Sequential queue processing - only for pending jobs
   const processQueue = async () => {
-    if (isProcessing) return
+    // Double-check to prevent race conditions
+    if (isProcessing) {
+      console.log('processQueue: Already processing, skipping')
+      return
+    }
+    
+    // Debounce: prevent polling too frequently
+    const now = Date.now()
+    const timeSinceLastPoll = now - lastPollTimeRef.current
+    if (timeSinceLastPoll < 1000) { // Minimum 1 second between polls
+      console.log('processQueue: Polling too frequently, skipping')
+      return
+    }
     
     try {
       setIsProcessing(true)
+      lastPollTimeRef.current = now
+      console.log('processQueue: Starting to poll', pendingJobs.length, 'jobs')
       
       // Only poll for jobs that are pending and have real job IDs (from direct API calls)
       const jobsToPoll = testJobs.filter(job => 
@@ -228,28 +243,29 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
       console.error('Error in processQueue:', error)
     } finally {
       setIsProcessing(false)
+      console.log('processQueue: Finished processing')
     }
   }
 
-  // Single useEffect to handle queue processing - RE-ENABLED for polling completed jobs
-  useEffect(() => {
-    if (pendingJobs.length > 0 && !isProcessing) {
-      processQueue()
-    }
-  }, [pendingJobs.length, isProcessing])
-
-  // Interval-based polling for pending jobs
+  // Single consolidated polling mechanism
   useEffect(() => {
     if (pendingJobs.length === 0) return
 
+    // Initial poll when jobs are added
+    if (!isProcessing) {
+      processQueue()
+    }
+
+    // Set up interval for ongoing polling (minimum 2 seconds)
+    const effectiveInterval = Math.max(pollingInterval, 2000)
     const interval = setInterval(() => {
       if (pendingJobs.length > 0 && !isProcessing) {
         processQueue()
       }
-    }, pollingInterval)
+    }, effectiveInterval)
 
     return () => clearInterval(interval)
-  }, [pendingJobs.length, isProcessing, pollingInterval])
+  }, [pendingJobs.length, pollingInterval]) // Removed isProcessing from dependencies to prevent loops
 
   // Handle adding new job to queue - DISABLED since we're making direct API calls
   const handleAddToQueue = async (jobData: any) => {
@@ -359,11 +375,11 @@ export const TestQueuePanel = forwardRef<{ addToQueue: (jobData: any) => Promise
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1000">1s</SelectItem>
                   <SelectItem value="2000">2s</SelectItem>
                   <SelectItem value="5000">5s</SelectItem>
                   <SelectItem value="10000">10s</SelectItem>
                   <SelectItem value="30000">30s</SelectItem>
+                  <SelectItem value="60000">1m</SelectItem>
                 </SelectContent>
               </Select>
               {pendingJobs.length > 0 && (
