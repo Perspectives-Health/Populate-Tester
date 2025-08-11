@@ -99,10 +99,10 @@ export function SyncDbButton() {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2">
+          {/* <Button variant="outline" size="sm" className="gap-2">
             <Shield className="h-4 w-4" />
             Sync Database
-          </Button>
+          </Button> */}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           {syncOptions.map((option) => (
